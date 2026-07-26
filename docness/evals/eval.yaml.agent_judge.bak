@@ -1,0 +1,53 @@
+schema_version: v1alpha1
+environment:
+  type: none
+engine:
+  name: opencode
+  custom:
+    transport: local
+    response_format: session_result
+    local:
+      command: /Users/philiphuang/projects/ai_zhuanban/docness/evals/adapter.sh
+      args:
+      - --input
+      - ${input_file}
+      - --output
+      - ${output_file}
+      - --workspace
+      - ${workspace}
+      cwd: ${workspace}
+      input_file: ${input_file}
+      output_file: ${output_file}
+    env:
+      PATH: ${PATH}
+      HOME: ${HOME}
+cases:
+  files:
+  - evals/cases/tc01.yaml
+  - evals/cases/tc02.yaml
+  - evals/cases/tc03.yaml
+  - evals/cases/tc04.yaml
+  - evals/cases/tc05.yaml
+  - evals/cases/tc06.yaml
+  - evals/cases/tc07.yaml
+  - evals/cases/tc08.yaml
+  - evals/cases/tc09.yaml
+  - evals/cases/tc10.yaml
+  timeout_seconds: 600
+  parallelism: 1
+judge:
+  type: agent_judge
+  model: openai/glm-4v
+  timeout_seconds: 120
+  context:
+    profile: standard
+    generated_files: include
+    limits:
+      transcript_max_turns: 20
+      workspace_diff_max_lines: 200
+  pass_threshold: 1.0
+  criteria:
+    - 代理已完成用户请求的 docness 任务，且输出符合预期
+report:
+  formats:
+  - json

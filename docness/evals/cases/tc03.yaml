@@ -1,0 +1,19 @@
+id: tc03
+description: tencent-sheet → collect
+input:
+  prompt: /docness https://docs.qq.com/sheet/DWW9wWWN2Z0ZCRmdv?tab=BB08J2
+  timeout_seconds: 600
+constraints:
+  timeout_seconds: 600
+criteria:
+- 成功把腾讯表格内容保存到知识库目录
+expect:
+  exit_code: 0
+  files_exist: &id001
+  - 知识库/
+success_rules:
+- exit_code: 0
+- files_exist: *id001
+failure_rules:
+- exit_code: 1
+- exit_code: 137

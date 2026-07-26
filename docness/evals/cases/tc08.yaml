@@ -1,0 +1,19 @@
+id: tc08
+description: excel → collect
+input:
+  prompt: /docness /Users/philiphuang/projects/客响装维/inbox/客户提供/立项材料/装维养成式智能体时间倒排.xlsx
+  timeout_seconds: 600
+constraints:
+  timeout_seconds: 600
+criteria:
+- 成功解析 Excel 表格并保存到知识库目录
+expect:
+  exit_code: 0
+  files_exist: &id001
+  - 知识库/
+success_rules:
+- exit_code: 0
+- files_exist: *id001
+failure_rules:
+- exit_code: 1
+- exit_code: 137

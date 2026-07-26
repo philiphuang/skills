@@ -1,0 +1,28 @@
+name: docness
+description: >
+  文档收发编排器。触发词：收集、下载、拉取、保存、归档、整理、配图、生成 PPT、
+  转 PDF、转 Word、推送、发送、上传、发布、同步。用户给 URL/文件/文字，自动
+  识别意图后执行 collect/process/send SOP。
+tools:
+  - bash
+  - read
+  - write
+  - edit
+  - glob
+  - grep
+skills:
+  - tencent-docs
+  - lark-doc
+  - lark-shared
+  - tencent-meeting-mcp
+  - lark-minutes
+  - lark-vc
+  - baoyu-url-to-markdown
+  - baoyu-image-gen
+  - baoyu-slide-deck
+  - md2feishu
+  - transcribe
+  - docx
+  - pdf
+  - pptx
+  - xlsx

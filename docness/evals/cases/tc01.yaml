@@ -1,0 +1,19 @@
+id: tc01
+description: feishu-minutes → collect
+input:
+  prompt: /docness https://cmitry.feishu.cn/minutes/obcntue4jg6jv61638niq2bf?from=ai_minutes
+  timeout_seconds: 600
+constraints:
+  timeout_seconds: 600
+criteria:
+- 成功把飞书妙记内容保存到知识库目录
+expect:
+  exit_code: 0
+  files_exist: &id001
+  - 知识库/
+success_rules:
+- exit_code: 0
+- files_exist: *id001
+failure_rules:
+- exit_code: 1
+- exit_code: 137
