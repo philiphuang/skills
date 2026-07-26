@@ -69,5 +69,5 @@ Markdown 知识库（AI 资产底座）
 ## 依赖 skill
 
 tencent-docs, lark-doc, lark-shared, tencent-meeting-mcp, lark-minutes, lark-vc,
-baoyu-url-to-markdown, baoyu-image-gen, baoyu-slide-deck, markdown-exporter,
+baoyu-url-to-markdown, baoyu-image-gen, baoyu-slide-deck,
 md2feishu, transcribe, Anthropic docx/pdf/pptx/xlsx, mineru
