@@ -9,3 +9,4 @@
 | 目录 | 说明 | 安装地址 |
 |------|------|----------|
 | `docness/` | 文档收发编排器：URL/本地文件 → Markdown 知识库 → 配图/PPT/Word/PDF/飞书/腾讯文档 | `https://github.com/philiphuang/skills/tree/main/docness` |
+| `md2feishu/` | 本地 markdown 增量同步到飞书 wiki，保留批注/白板/图片 | `https://github.com/philiphuang/skills/tree/main/md2feishu` |

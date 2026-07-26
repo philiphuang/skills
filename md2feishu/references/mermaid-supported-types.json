@@ -1,0 +1,24 @@
+{
+  "description": "md2feishu 支持的 mermaid 图类型清单",
+  "supported": [
+    "flowchart"
+  ],
+  "needs_whiteboard_cli": [
+    "sequenceDiagram",
+    "classDiagram",
+    "pie",
+    "gantt",
+    "stateDiagram-v2",
+    "erDiagram",
+    "gitGraph",
+    "mindmap"
+  ],
+  "aliases": {
+    "graph": "flowchart"
+  },
+  "fallback": {
+    "behavior": "wrap_in_code_block_and_warn",
+    "message_template": "⚠️ mermaid 类型 \"{type}\" 需 whiteboard-cli 渲染，已降级为代码块。命令：npx -y @larksuite/whiteboard-cli@^0.2.11 -i <file.mmd> --from mermaid --to openapi | lark-cli whiteboard +update --whiteboard-token <TOKEN> --input_format raw --source - --overwrite --as user"
+  },
+  "note": "lark-doc 只支持 flowchart/graph 自动渲染白板。sequenceDiagram/classDiagram 等需通过 whiteboard-cli 手动渲染后上传 whiteboard +update。preprocess 自动降级不支持类型为代码块。"
+}
