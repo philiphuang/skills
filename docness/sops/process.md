@@ -12,8 +12,8 @@
 | 意图 | 调用 skill | 产物 |
 |------|-----------|------|
 | 配图 | `baoyu-image-gen` | 锚点 .md + img/ 目录 |
-| 转 Word | `markdown-exporter` | .docx |
-| 转 PDF | `markdown-exporter` | .pdf |
+| 转 Word | `docx`（Anthropic，docx-js 生成） | .docx |
+| 转 PDF | `pdf`（Anthropic，pypdf/reportlab 生成） | .pdf |
 | 生成 PPT | `baoyu-slide-deck` | .pptx 或 .pdf |
 
 ## 配图流程
