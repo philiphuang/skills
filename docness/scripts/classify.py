@@ -1,8 +1,14 @@
-"""Knowledge base classification using LLM."""
+"""Knowledge base classification using LLM.
+
+本模块是 stub：build_classify_prompt() 产出分类 prompt，但 classify() 不直接调用
+LLM，而是返回该 prompt + reason="requires_llm"。agent 拿到 prompt 后自行调用 LLM，
+再用 parse_classify_response() 解析返回的 JSON。
+"""
 
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 
 
@@ -82,3 +88,30 @@ def classify(
         "category": "UNCERTAIN",
         "reason": "requires_llm",
     }
+
+
+def main():
+    """命令行入口：python3 -m scripts.classify <Markdown文件路径> [知识库目录]。
+
+    读取文件内容，产出分类 prompt（JSON 含 prompt 字段）。
+    agent 拿到 prompt 后自行调用 LLM，再用 parse_classify_response() 解析。
+    """
+    if len(sys.argv) < 2:
+        print(
+            "用法: python3 -m scripts.classify <Markdown文件路径> [知识库目录]\n"
+            "知识库目录默认为 知识库/",
+            file=sys.stderr,
+        )
+        sys.exit(2)
+
+    md_path = sys.argv[1]
+    kb_dir = sys.argv[2] if len(sys.argv) > 2 else "知识库"
+
+    content = Path(md_path).read_text(encoding="utf-8")
+    existing = get_existing_categories(kb_dir)
+    result = classify(content, existing)
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+
+
+if __name__ == "__main__":
+    main()

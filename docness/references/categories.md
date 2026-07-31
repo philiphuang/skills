@@ -1,5 +1,7 @@
 # Knowledge Base Categories
 
+> 默认分类的权威定义在 `scripts/classify.py:DEFAULT_CATEGORIES`，本文件是分类规则的人工可读说明。
+
 预定义分类目录，位于 `知识库/` 下：
 
 - 会议纪要/

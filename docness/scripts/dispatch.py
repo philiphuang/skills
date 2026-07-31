@@ -34,7 +34,8 @@ URL_PATTERNS: list[tuple[str, str, str]] = [
 ]
 
 COLLECT_TRIGGERS = {"收集", "下载", "拉取", "保存", "归档", "整理", "录制"}
-PROCESS_TRIGGERS = {"配图", "生成 ppt", "生成PPT", "转 pdf", "转 PDF", "转 word", "转 Word"}
+# _detect_intent 会归一化文本（去空格+小写），故触发词存一种形态即可
+PROCESS_TRIGGERS = {"配图", "生成ppt", "转pdf", "转word"}
 SEND_TRIGGERS = {"推送", "发送", "上传", "发布", "同步"}
 
 
@@ -117,15 +118,17 @@ def classify_input(raw: str) -> dict:
 
 
 def _detect_intent(text: str) -> str | None:
-    lower = text.lower()
+    # 归一化：转小写 + 去所有空白，使触发词只需存一种形态，
+    # 同时覆盖 "生成PPT"/"生成 ppt"/"生成PPT " 等写法
+    norm = re.sub(r"\s+", "", text.lower())
     for t in SEND_TRIGGERS:
-        if t in lower:
+        if re.sub(r"\s+", "", t) in norm:
             return "send"
     for t in PROCESS_TRIGGERS:
-        if t in lower:
+        if re.sub(r"\s+", "", t) in norm:
             return "process"
     for t in COLLECT_TRIGGERS:
-        if t in lower:
+        if t in norm:  # COLLECT 触发词无空格，直接匹配
             return "collect"
     return None
 

@@ -5,16 +5,20 @@
 ## 触发方式
 
 - `/docness process <文件路径> <处理类型>`
-- 自然语言触发词："配图"、"生成 PPT"、"转 PDF"、"转 Word"
+- 自然语言触发词见 `scripts/dispatch.py:PROCESS_TRIGGERS`
 
 ## 处理类型
 
-| 意图 | 调用 skill | 产物 |
-|------|-----------|------|
-| 配图 | `baoyu-image-gen` | 锚点 .md + img/ 目录 |
-| 转 Word | `docx`（Anthropic，docx-js 生成） | .docx |
-| 转 PDF | `pdf`（Anthropic，pypdf/reportlab 生成） | .pdf |
-| 生成 PPT | `baoyu-slide-deck` | .pptx 或 .pdf |
+转 Word/PDF/PPT 调用 `convert_from_markdown(md_path, target_format)`（由 pandoc 驱动，自动命名输出文件）；pandoc 失败时降级到对应 Anthropic Skill。配图走 `baoyu-image-gen`。
+
+| 意图 | 实现 | 产物 |
+|------|------|------|
+| 转 Word | `convert_from_markdown(path, "docx")` → 降级 `docx` Skill | .docx |
+| 转 PDF | `convert_from_markdown(path, "pdf")` → 降级 `pdf` Skill | .pdf |
+| 生成 PPT | `convert_from_markdown(path, "pptx")`（简单文稿）→ `baoyu-slide-deck`（排版需求） | .pptx/.pdf |
+| 配图 | `baoyu-image-gen` | 锚点 .md + img/ |
+
+> PPT 有天花板：简单讲稿可行，精美排版需 baoyu-slide-deck。
 
 ## 配图流程
 
@@ -26,4 +30,4 @@
 
 ## 记录
 
-处理完成后更新 front matter processing 记录。
+调用 `record_process(filepath, action, skill, outputs)` 写入 front matter。完成判据：front matter 的 `processing` 数组已追加本次记录（含 action/skill/outputs/processed_at）。
