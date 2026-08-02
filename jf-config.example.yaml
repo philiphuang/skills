@@ -1,0 +1,20 @@
+# jf-* 执行者配置模板
+#
+# 复制到项目根目录 .jf/config.yaml，按项目实际安装的 skill 填槽。
+# 未填的槽位 = jf-* 自行降级执行。
+
+executors:
+  # ── 文档编写类 ──
+  采集facilitation: grill-with-docs     # 或 bmad-product-brief
+  领域建模: domain-modeling              # Matt Pocock
+  PRD编写: bmad-prd                       # 或 to-spec
+  UX设计: bmad-ux                         # 或 prototype
+
+  # ── 软件开发类（4.0交付层，套件外）──
+  软件开发: implement                     # 或 bmad-build
+  测试驱动: tdd                           # 或 bmad-qa-generate-e2e-tests
+  代码评审: code-review                   # 或 bmad-code-review
+
+  # ── 可扩展：任何 skill 都能填槽 ──
+  # 调研: research
+  # 架构改进: improve-codebase-architecture
