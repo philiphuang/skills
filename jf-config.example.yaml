@@ -1,20 +1,45 @@
 # jf-* 执行者配置模板
 #
-# 复制到项目根目录 .jf/config.yaml，按项目实际安装的 skill 填槽。
-# 未填的槽位 = jf-* 自行降级执行。
+# 复制到项目根目录 .jf/config.yaml。
+# mode 决定链路模式（三选一），下面三段按 mode 生效。
 
-executors:
-  # ── 文档编写类 ──
-  采集facilitation: grill-with-docs     # 或 bmad-product-brief
-  领域建模: domain-modeling              # Matt Pocock
-  PRD编写: bmad-prd                       # 或 to-spec
-  UX设计: bmad-ux                         # 或 prototype
+mode: matt-pocock    # bmad | matt-pocock | superpower
 
-  # ── 软件开发类（4.0交付层，套件外）──
-  软件开发: implement                     # 或 bmad-build
-  测试驱动: tdd                           # 或 bmad-qa-generate-e2e-tests
-  代码评审: code-review                   # 或 bmad-code-review
+# ═══════════════════════════════════════════════
+# bmad 模式：链路对接
+# jf-* 步骤 ↔ BMAD 步骤对接，BMAD 内部管链路自动推进
+# jf-* 只在交接点对接，不干预 BMAD 内部流程
+# ═══════════════════════════════════════════════
+bmad:
+  jf-mrd:        bmad-product-brief       # 产品愿景 + 规则整理
+  jf-prd:        bmad-prd                 # PRD 编写
+  jf-ia:         bmad-ux                  # UX/IA（DESIGN.md + EXPERIENCE.md）
+  jf-wireframe:  bmad-ux                  # 同上
+  jf-test:       bmad-qa-generate-e2e-tests
+  软件开发:       bmad-build
+  代码评审:       bmad-code-review
 
-  # ── 可扩展：任何 skill 都能填槽 ──
-  # 调研: research
-  # 架构改进: improve-codebase-architecture
+# ═══════════════════════════════════════════════
+# matt-pocock 模式：叙述地图
+# jf-* 是路由地图（非调度器），每步完成后人手动切换
+# 每个 skill 独立无状态，强调上下文 hygiene
+# ═══════════════════════════════════════════════
+matt-pocock:
+  采集facilitation: grill-with-docs
+  领域建模:         domain-modeling
+  PRD编写:          to-spec
+  软件开发:         implement
+  测试驱动:         tdd
+  代码评审:         code-review
+
+# ═══════════════════════════════════════════════
+# superpower 模式：行为循环
+# jf-* 技能声明产出和移交状态，using-superpowers 自动拾取
+# SDD（subagent-driven-development）提供自动循环
+# ═══════════════════════════════════════════════
+superpower:
+  brainstorming:      brainstorming
+  writing-plans:      writing-plans
+  subagent-driven-dev: subagent-driven-development
+  test-driven-dev:    test-driven-development
+  code-review:        requesting-code-review

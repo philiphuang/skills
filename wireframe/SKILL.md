@@ -54,5 +54,5 @@ CSM 组件状态矩阵：GC × 用户状态笛卡尔积
 本 skill 通用，不绑特定项目。以下可按项目调整：
 
 - **目录路径**：产物的存放位置由使用者项目结构决定（推荐默认见各块说明）
-- **执行者委派**：本 skill 的 [UX设计] 能力可委派给外部 skill。配置见 `.jf/config.yaml`（模板见 `products/jf-config.example.yaml`）。未配置时本 skill 自行执行
+- **执行者适配**：本 skill 支持三种模式适配外部 skill 套件（BMAD 链路对接 / Matt Pocock 叙述地图 / Superpowers 行为循环）。配置见 `.jf/config.yaml`（模板 `products/jf-config.example.yaml`）。未配置时本 skill 自行执行
 - **推荐默认**：输出格式和载体默认可改——见各块最佳形态说明
