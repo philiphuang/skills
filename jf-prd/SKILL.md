@@ -13,12 +13,15 @@ description: 交付·PRD——把业务事实转成可验收的需求规格+权�
 
 ## 入口纪律
 
-**意图不清或方案不清晰时，先梳理再走流程**：
+**先走 jf-router 意图分类**：
+1. 用 `products/jf-router/SKILL.md` 判断用户意图落在高保真工作法哪一层
+2. 若目标 skill ≠ 本 skill → 终止本 skill 流程，输出路由结果并直接按目标 skill 执行
+3. 若目标 skill = 本 skill → 继续本 skill 流程
+
+**意图不清或方案不清晰时**：
 - 需求模糊、业务逻辑不清 → 调用 `grill-with-docs` 盘问梳理
 - 问题太大、路径不明 → 调用 `wayfinder` 建图寻路
-- 梳理清楚后，回到本 skill 走流程
-
-**misroute scan**（首次消息时检查）：如果用户的意图指向别的 jf-* skill，建议切换再继续。
+- 梳理清楚后回到本 skill，重新走 jf-router 分类
 
 ## FR 映射：从 UC 到功能需求
 
