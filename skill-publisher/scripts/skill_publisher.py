@@ -30,11 +30,13 @@ STRIP_DIRS = {"tests", "evals", "__pycache__", ".pytest_cache", ".mypy_cache"}
 STRIP_SUFFIXES = (".pyc", ".pyo", ".bak")
 
 
-def run(cmd: list[str], cwd: Path | None = None, check: bool = True, capture: bool = False) -> subprocess.CompletedProcess:
+def run(cmd: list[str], cwd: Path | None = None, check: bool = True, capture: bool = False, input_text: str | None = None) -> subprocess.CompletedProcess:
     """执行子进程命令，失败时抛出 CalledProcessError。"""
     kwargs = {"cwd": cwd, "text": True}
     if capture:
         kwargs["capture_output"] = True
+    if input_text is not None:
+        kwargs["input"] = input_text
     return subprocess.run(cmd, check=check, **kwargs)
 
 
@@ -176,7 +178,7 @@ def cmd_install(args: argparse.Namespace) -> int:
 
     try:
         # 1. 添加临时 target
-        run(["skillshare", "target", "add", temp_target, str(target_dir), "-g"])
+        run(["skillshare", "target", "add", temp_target, str(target_dir), "-g"], input_text="y\n")
 
         # 2. 从 GitHub 安装 skill 到全局 source
         install_cmd = ["skillshare", "install", remote, "-s", skill_name, "-g"]
