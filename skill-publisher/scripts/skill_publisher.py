@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""skill_publisher.py — Skill Factory 发布/安装双流程入口。
+"""skill_publisher.py — Skill Factory 发布/安装一体化入口。
 
-发布：把 products/<skill>/ 部署到 skills-repo/<skill>/ 并推送到 GitHub。
-安装：从 GitHub 通过 skillshare 把指定 skill 部署到用户指定的目标目录。
+单一命令：publish <skill-name> [<target-dir>]
+- 只带 skill-name：把 products/<skill>/ 发布到 skills-repo/<skill>/ 并推送到 GitHub。
+- 带 target-dir：先确保 skill 已发布（未发布则先发布），再用 skillshare 项目模式安装到目标目录。
 """
 
 import argparse
@@ -11,7 +12,6 @@ import shutil
 import subprocess
 import sys
 import tempfile
-import uuid
 from pathlib import Path
 
 # 返回码
@@ -77,23 +77,11 @@ def do_copy(source: Path, target: Path) -> None:
     shutil.copytree(source, target)
 
 
-def cmd_publish(args: argparse.Namespace) -> int:
-    """发布命令实现。"""
-    skill_name = args.skill_name
-    dry_run = args.dry_run
-    force = args.force
+def publish_skill(skill_name: str, repo_root: Path, message: str | None = None, force: bool = False, dry_run: bool = False) -> int:
+    """把 products/<skill>/ 发布到 skills-repo/<skill>/ 并推送到 GitHub。
 
-    # 1. 确认在 skills-factory 仓库
-    try:
-        repo_root = find_repo_root()
-    except subprocess.CalledProcessError:
-        print("错误：当前目录不是 git 仓库，无法确定 skills-factory 根目录", file=sys.stderr)
-        return RC_PARAM_ERROR
-
-    if not is_skills_factory_repo(repo_root):
-        print(f"错误：当前仓库不是 skills-factory（缺少 products/ 或 skills-repo/）：{repo_root}", file=sys.stderr)
-        return RC_PARAM_ERROR
-
+    返回 0 表示成功，非 0 表示失败。
+    """
     source = repo_root / "products" / skill_name
     if not (source / "SKILL.md").is_file():
         print(f"错误：products/{skill_name}/SKILL.md 不存在", file=sys.stderr)
@@ -102,7 +90,6 @@ def cmd_publish(args: argparse.Namespace) -> int:
     skills_repo = repo_root / "skills-repo"
     target = skills_repo / skill_name
 
-    # 2. 剥离测试代码并复制
     if dry_run:
         print(f"[DRY RUN] 将发布 {skill_name}:")
         print(f"  来源: {source}")
@@ -112,7 +99,6 @@ def cmd_publish(args: argparse.Namespace) -> int:
         return RC_OK
 
     try:
-        # 复制到临时目录后剥离
         tmpdir = Path(tempfile.mkdtemp(prefix=f"skill_publisher_{skill_name}_"))
         staged = tmpdir / skill_name
         shutil.copytree(source, staged)
@@ -127,17 +113,15 @@ def cmd_publish(args: argparse.Namespace) -> int:
         print(f"错误：部署到 skills-repo 失败: {e}", file=sys.stderr)
         return RC_DEPLOY_ERROR
 
-    # 3. git 操作
     try:
-        # 检查是否有变更
         result = run(["git", "status", "--porcelain", "--", skill_name], cwd=skills_repo, capture=True)
         if not result.stdout.strip():
             print(f"ℹ️  skills-repo/{skill_name} 无变更，无需提交")
             return RC_OK
 
         run(["git", "add", "--", skill_name], cwd=skills_repo)
-        message = args.message or f"release: {skill_name}"
-        run(["git", "commit", "-m", message], cwd=skills_repo)
+        commit_message = message or f"release: {skill_name}"
+        run(["git", "commit", "-m", commit_message], cwd=skills_repo)
         run(["git", "push"], cwd=skills_repo)
         print(f"✅ 已发布 {skill_name} 到 skills-repo/ 并推送到 GitHub")
         return RC_OK
@@ -146,97 +130,111 @@ def cmd_publish(args: argparse.Namespace) -> int:
         return RC_GIT_ERROR
 
 
+def is_published(skill_name: str, repo_root: Path) -> bool:
+    """检查 skills-repo/<skill>/SKILL.md 是否存在。"""
+    return (repo_root / "skills-repo" / skill_name / "SKILL.md").is_file()
+
+
 def ensure_skillshare() -> bool:
     """检查 skillshare CLI 是否可用。"""
     return shutil.which("skillshare") is not None
 
 
-def cmd_install(args: argparse.Namespace) -> int:
-    """安装命令实现。"""
-    skill_name = args.skill_name
-    target_dir = Path(args.target_dir).expanduser().resolve()
-    dry_run = args.dry_run
-    force = args.force
-    remote = args.remote or DEFAULT_REMOTE
+def install_skill(skill_name: str, target_dir: Path, remote: str, force: bool = False, dry_run: bool = False) -> int:
+    """用 skillshare 项目模式把 skill 安装到目标目录。
 
+    返回 0 表示成功，非 0 表示失败。
+    """
     if not ensure_skillshare():
         print("错误：未找到 skillshare CLI，请先安装 skillshare", file=sys.stderr)
         return RC_SKILLSHARE_ERROR
 
     if dry_run:
-        print(f"[DRY RUN] 将安装 {skill_name}:")
+        print(f"[DRY RUN] 将安装 {skill_name} 到 {target_dir}:")
         print(f"  来源: {remote}")
-        print(f"  目标目录: {target_dir}")
-        print(f"  命令: skillshare target add / install / sync / remove")
+        print(f"  命令:")
+        print(f"    skillshare init -p")
+        print(f"    skillshare install {remote} -s {skill_name} -p")
+        print(f"    skillshare sync -p")
         return RC_OK
 
-    # 确保目标目录存在
     target_dir.mkdir(parents=True, exist_ok=True)
 
-    # 临时 target 名称
-    temp_target = f"skill-publisher-{uuid.uuid4().hex[:8]}"
-
     try:
-        # 1. 添加临时 target
-        run(["skillshare", "target", "add", temp_target, str(target_dir), "-g"], input_text="y\n")
+        # 初始化项目配置（已存在则幂等跳过）
+        run(["skillshare", "init", "-p"], cwd=target_dir)
 
-        # 2. 从 GitHub 安装 skill 到全局 source
-        install_cmd = ["skillshare", "install", remote, "-s", skill_name, "-g"]
+        # 从 GitHub 安装 skill 到项目 source
+        install_cmd = ["skillshare", "install", remote, "-s", skill_name, "-p"]
         if force:
             install_cmd.append("--force")
-        run(install_cmd)
+        run(install_cmd, cwd=target_dir)
 
-        # 3. 同步到临时 target
-        run(["skillshare", "sync", temp_target, "-g"])
+        # 按项目已有 target 配置同步
+        run(["skillshare", "sync", "-p"], cwd=target_dir)
 
-        # 4. 验证
-        installed = target_dir / skill_name / "SKILL.md"
-        if not installed.is_file():
-            print(f"错误：安装后未找到 {installed}", file=sys.stderr)
-            return RC_DEPLOY_ERROR
-
-        print(f"✅ 已安装 {skill_name} → {target_dir / skill_name}")
+        print(f"✅ 已安装 {skill_name} 到 {target_dir}（通过 skillshare 项目模式）")
         return RC_OK
     except subprocess.CalledProcessError as e:
         print(f"错误：skillshare 调用失败: {e}", file=sys.stderr)
         return RC_SKILLSHARE_ERROR
-    finally:
-        # 5. 清理临时 target
-        try:
-            run(["skillshare", "target", "remove", temp_target, "-g"], check=False)
-        except Exception:
-            pass
+
+
+def cmd_publish(args: argparse.Namespace) -> int:
+    """publish 命令实现。"""
+    skill_name = args.skill_name
+    target_dir: Path | None = Path(args.target_dir).expanduser().resolve() if args.target_dir else None
+    dry_run = args.dry_run
+    force = args.force
+    message = args.message
+    remote = args.remote or DEFAULT_REMOTE
+
+    # 1. 确认在 skills-factory 仓库
+    try:
+        repo_root = find_repo_root()
+    except subprocess.CalledProcessError:
+        print("错误：当前目录不是 git 仓库，无法确定 skills-factory 根目录", file=sys.stderr)
+        return RC_PARAM_ERROR
+
+    if not is_skills_factory_repo(repo_root):
+        print(f"错误：当前仓库不是 skills-factory（缺少 products/ 或 skills-repo/）：{repo_root}", file=sys.stderr)
+        return RC_PARAM_ERROR
+
+    # 2. 仅发布
+    if target_dir is None:
+        return publish_skill(skill_name, repo_root, message=message, force=force, dry_run=dry_run)
+
+    # 3. 发布并安装：先确保已发布
+    if not is_published(skill_name, repo_root):
+        print(f"ℹ️  {skill_name} 尚未发布，先执行发布流程...")
+        rc = publish_skill(skill_name, repo_root, message=message, force=force, dry_run=dry_run)
+        if rc != RC_OK:
+            return rc
+    else:
+        print(f"ℹ️  {skill_name} 已发布，跳过发布流程")
+
+    # 4. 安装到目标目录
+    return install_skill(skill_name, target_dir, remote, force=force, dry_run=dry_run)
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="skill_publisher.py",
-        description="Skill Factory 发布/安装双流程工具",
+        description="Skill Factory 发布/安装一体化工具",
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    # publish
-    pub = subparsers.add_parser("publish", help="发布 skill 到 skills-repo/ 并推送到 GitHub")
-    pub.add_argument("skill_name", help="要发布的 skill 名称（products/ 下的子目录名）")
+    pub = subparsers.add_parser("publish", help="发布 skill；若提供目标目录则同时安装")
+    pub.add_argument("skill_name", help="要发布/安装的 skill 名称（products/ 下的子目录名）")
+    pub.add_argument("target_dir", nargs="?", help="目标项目目录（可选，提供则同时安装）")
     pub.add_argument("-m", "--message", help="git commit 信息")
     pub.add_argument("-n", "--dry-run", action="store_true", help="预览，不实际执行")
     pub.add_argument("-f", "--force", action="store_true", help="直接覆盖已存在的 skill")
-
-    # install
-    inst = subparsers.add_parser("install", help="从 GitHub 安装 skill 到指定目录")
-    inst.add_argument("skill_name", help="要安装的 skill 名称")
-    inst.add_argument("target_dir", help="目标目录路径")
-    inst.add_argument("-n", "--dry-run", action="store_true", help="预览，不实际执行")
-    inst.add_argument("-f", "--force", action="store_true", help="强制覆盖")
-    inst.add_argument("--remote", help=f"GitHub 仓库（默认 {DEFAULT_REMOTE}）")
+    pub.add_argument("--remote", help=f"GitHub 发布仓（默认 {DEFAULT_REMOTE}）")
 
     args = parser.parse_args(argv)
-
     if args.command == "publish":
         return cmd_publish(args)
-    if args.command == "install":
-        return cmd_install(args)
-
     parser.print_help()
     return RC_PARAM_ERROR
 
