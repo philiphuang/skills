@@ -1,0 +1,49 @@
+# imness 配置示例 —— 复制为 config.yaml 后填写实际值
+#
+# 真相源是飞书界面：把群/单聊拖进对应标签即被本项目采集，代码零改动。
+# 渠道下可配多个实例（多账号），每个实例 = 1 个 lark-cli profile。
+#
+# 查看当前标签: lark-cli im +feed-group-list --format json
+# 查看标签下会话: lark-cli im +feed-group-list-item --feed-group-id <group_id> --page-all
+
+channels:
+  # === 飞书渠道 ===
+  # 可配多个实例（同人多账号 / 不同人），每个实例独立 lark profile 认证隔离
+  feishu:
+    - name: work                    # 实例标识，供脚本/日志/index 引用（必填，同渠道内唯一）
+      lark_profile: work            # lark-cli profile 名（必填，认证隔离）
+      my_name: {YOUR_NAME}          # 我的飞书显示名（必填）
+      my_id: {YOUR_OU_ID}           # 我的 ou_id（必填，例: ou_2dcb999e...）
+      my_aliases: [{YOUR_NAME}, {YOUR_ALIAS}]  # 我的简称（必填，≥1 个）
+                                     #   双用：① report auto_triage 判 is_mine
+                                     #         ② collect-chats 单聊排除自己
+      project_tags: [{YOUR_TAG}]    # 项目标签（必填，≥1 个）
+                                     #   匹配这些标签的群才被采集
+                                     #   会议发现：群同时在此标签 + 「会议记录」标签下
+
+    # 第二个飞书实例示例（同人多账号 / 不同人）—— 不需要可删除
+    # - name: personal
+    #   lark_profile: personal
+    #   my_name: {YOUR_NAME}
+    #   my_id: {YOUR_OU_ID}
+    #   my_aliases: [{YOUR_NAME}]
+    #   project_tags: [personal-project]
+
+  # === 微信渠道（占位，采集未实现）===
+  # 此结构仅验证 schema 可扩展。采集脚本未实现，配置后不会采集。
+  # wechat:
+  #   - name: personal
+  #     wxid: wxid_xxx
+  #     my_name: Philip
+  #     my_aliases: [Philip]
+
+# === 会议发现（无需配置，自动标签匹配）===
+# 会议发现群 = 同时具有「本实例 project_tags 任一」**和**「会议记录」标签的群。
+# 在飞书界面创建「会议记录」标签，把会议纪要群同时拖进项目标签和「会议记录」标签即可。
+# 不再使用旧的 meeting_discovery_chat_id 字段。
+
+# === 说明 ===
+# 以下字段由 imness 运行时自动维护，不需要手动填写：
+# - knowledge/index.json 的游标（last_message.create_time，按实例隔离）
+# - 单聊 display_name（从消息辨认并缓存）
+# - raw 文件的 source_channel/source_instance frontmatter（采集时自动写入）
