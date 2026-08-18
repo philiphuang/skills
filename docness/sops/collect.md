@@ -2,11 +2,26 @@
 
 职责：URL/本地文件 → 获取 → 复杂度判定 → 路由转换 → 分类保存
 
+## 前置条件：解析工作区
+
+开始前先解析项目级工作区（详见 SKILL.md「前置条件与初始化」），从 docness 目录执行：
+
+```bash
+WS=$(python3 -m scripts.init_workspace "<项目根目录>")
+```
+
+`WS` 是 JSON，`workspace` 内含 `收件箱` / `知识库` / `工作台` / `发件箱` / `logs` 的**绝对路径**。
+本文所有 `收件箱/`、`知识库/`、`工作台/`、`发件箱/`、`.logs/` 一律指 WS 输出中的绝对路径，
+**严禁落到 skill 自身目录**（如 `.claude/skills/docness/知识库/`）：
+
+- 项目说明文件（`AGENTS.md` / `CLAUDE.md` 等）已声明工作区 → 遵循声明
+- 未声明 → `init_workspace` 在项目根目录创建目录并把配置写回说明文件（幂等，重复运行不破坏已有目录）
+
 ## 流程
 
-1. **输入识别** — 运行 `python3 -m scripts.dispatch "<输入>"`（从 docness 目录执行），解析返回 JSON 获得 intent/subtype/source_type
-2. **保存原始 URL** — URL 类型的输入先写入 `收件箱/{timestamp}-url.txt`
-3. **本地文件** — 复制到 `收件箱/`
+1. **输入识别** — 运行 `python3 -m scripts.dispatch "<输入>"`（从 docness 目录执行；输出仅用于识别意图，不产生文件），解析返回 JSON 获得 intent/subtype/source_type
+2. **保存原始 URL** — URL 类型的输入先写入 `收件箱/{timestamp}-url.txt`（`收件箱` 取 WS 输出的绝对路径）
+3. **本地文件** — 复制到 `收件箱/`（同上）
 4. **格式转换** —— 两阶段路由：
    - **4a 旧格式桥接** — .doc/.ppt/.xls/.wps 先经 LibreOffice headless 转为新格式（.docx/.pptx/.xlsx）再进入判定。LibreOffice 不可用时提示用户手动另存，或降级走 Anthropic Skill。
    - **4b 复杂度判定路由** — 对新格式文件运行 `python3 -m scripts.complexity <文件路径> <文件类型>` 或调用 `decide_route()`：
@@ -34,18 +49,18 @@
      - 飞书文档 → `lark-doc`
      - **会议** → `tencent-meeting-mcp` / `lark-minutes` / `lark-vc`
        - 先获取会议主题（subject）和与会人列表（attendees）
-       - 构建目录：`知识库/会议纪要/{yymmdd}{主题}/`
+       - 构建目录：`知识库/会议纪要/{yymmdd}{主题}/`（`知识库` 取 WS 输出的绝对路径）
        - 文件名：`generate_meeting_filename()` 返回 `(filename, directory)`
        - 示例：`260723-吴鸿涛黄志恒-企业平台沟通-纪要.md` → 目录 `260723企业平台沟通/`
      - 网页 → `baoyu-url-to-markdown`
      - 音视频 → `transcribe`
 
 5. **分类** — 运行 `python3 -m scripts.classify <Markdown文件路径>`，拿到分类 prompt 后自行调用 LLM，再用 `parse_classify_response()` 解析返回 JSON 获得 category（见 `references/categories.md` 的分类规则）。
-6. **入库** — 移动到 `知识库/{category}/`，生成规范文件名（这是必须完成的一步，不省略）
+6. **入库** — 移动到 `知识库/{category}/`（`知识库` 取 WS 输出的绝对路径），生成规范文件名（这是必须完成的一步，不省略）
 7. **记录** — 三项缺一不可，全部完成才算 collect 结束：
    - 调用 `record_collect(filepath, source, source_type, category, original_filename)` 写入 front matter（schema 见 `references/front-matter-schema.md`）
-   - 调用 `index.add_entry(...)` 登记 `知识库/docness-index.yml`
-   - 调用 `record_log(log_dir, action, detail)` 追加 `.logs/YYYY-MM-DD-docness.md` 条目
+   - 调用 `index.add_entry(...)` 登记 `知识库/docness-index.yml`（`index_path` 传 WS 输出的 `知识库/docness-index.yml`）
+   - 调用 `record_log(log_dir, action, detail)` 追加 `.logs/YYYY-MM-DD-docness.md` 条目（`log_dir` 取 WS 输出的 `logs`）
 
 ## 转换失败降级
 
