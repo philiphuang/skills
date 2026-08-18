@@ -3,7 +3,7 @@ name: docness
 description: 文档收发编排器。把各来源文档（URL/本地/腾讯文档/飞书/会议录音）收进来转为 Markdown 入知识库，或从 Markdown 生成配图/PPT/Word/PDF 并推送到飞书/腾讯文档。用户要收集/归档文档、配图/转格式、或推送/上传文档时使用。
 license: MIT
 metadata:
-  version: "1.2.0"
+  version: "1.2.1"
   mode: production
   platform: opencode
 ---
@@ -40,6 +40,9 @@ metadata:
 
 ## 工作区结构
 
+> 工作区目录归属**项目**而非 skill 自身，实际路径由项目配置决定（见下文「前置条件与初始化」）。
+> 以下为默认结构：
+
 ```
 收件箱/     → 未分类的原始文件
 知识库/     → 已分类 Markdown + docness-index.yml
@@ -48,12 +51,43 @@ metadata:
 .logs/     → 操作日志（按日期）
 ```
 
+## 前置条件与初始化
+
+任何 SOP 开始前，先解析/初始化项目级工作区（从 docness 目录执行）：
+
+```bash
+python3 -m scripts.init_workspace "<项目根目录>"
+```
+
+流程：
+
+1. **检查项目配置** — 在项目根目录查找 `AGENTS.md` / `agents.md` / `CLAUDE.md` / `claude.md`（存在多个时按此顺序取第一个），解析其中 `## Docness 工作目录` 章节的 YAML 配置（`docness:` 键）
+2. **遵循声明** — 项目已声明工作区路径 → 按声明使用（相对路径基于 `root`，默认项目根目录），**不重建、不改写**
+3. **缺失则初始化** — 未声明 → 在项目根目录创建 `知识库/` `收件箱/` `发件箱/` `工作台/`（含 `.logs/`），并把配置写回项目说明文件（无说明文件时新建 `AGENTS.md`）
+4. **幂等** — 重复运行只补建缺失目录，不删除/覆盖已有内容；配置原地更新，不产生重复章节
+
+写回配置示例：
+
+```yaml
+docness:
+  root: .
+  收件箱: 收件箱
+  知识库: 知识库
+  工作台: 工作台
+  发件箱: 发件箱
+  logs: .logs
+```
+
+- 各目录值为相对 `root` 的路径；`root` 相对项目根目录，默认 `.`；只声明部分目录时，未声明项回退默认名（如 `知识库`）
+- 命令输出 JSON：`workspace`（各目录绝对路径）、`config_file`、`configured`。后续 SOP 一律使用这些**绝对路径**，严禁落到 skill 自身目录（如 `.claude/skills/docness/知识库/`）
+
 ## 脚本入口
 
 标 🔧 的可 `python3 -m scripts.<name>` 命令行执行（有 main()），其余为供 agent import 的库函数。
 
 | 脚本 | CLI | 功能 |
 |------|-----|------|
+| `scripts/init_workspace.py` | 🔧 | 工作区解析 + 幂等初始化（前置条件，见上） |
 | `scripts/dispatch.py` | 🔧 | 输入识别 + 意图分发 |
 | `scripts/complexity.py` | 🔧 | 复杂度指标提取 + 路由判定 |
 | `scripts/classify.py` | 🔧 | 产出分类 prompt（agent 据此调 LLM） |

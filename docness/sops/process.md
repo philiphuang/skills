@@ -2,6 +2,11 @@
 
 职责：Markdown → 配图 / 转 Word / 转 PDF / 生成 PPT
 
+## 前置条件：解析工作区
+
+开始前先运行 `python3 -m scripts.init_workspace "<项目根目录>"` 解析项目级工作区（详见 SKILL.md「前置条件与初始化」）。
+本文 `发件箱/`、`.logs/` 等一律指输出 JSON 中 `workspace` 的**绝对路径**，严禁落到 skill 自身目录。
+
 ## 触发方式
 
 - `/docness process <文件路径> <处理类型>`
