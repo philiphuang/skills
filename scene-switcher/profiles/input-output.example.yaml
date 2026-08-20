@@ -1,0 +1,16 @@
+sources:
+  skills: /Users/philiphuang/.skills-src
+mode: merge
+targets:
+  claude:
+    skills:
+      path: /Users/philiphuang/.claude/skills
+      include: ["ask-matt", "handoff", "triage"]
+  codex:
+    skills:
+      path: /Users/philiphuang/.codex/skills
+      include: ["ask-matt", "handoff", "triage"]
+  universal:
+    skills:
+      path: /Users/philiphuang/.agents/skills
+      include: ["ask-matt", "handoff", "triage"]

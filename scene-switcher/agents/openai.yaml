@@ -1,0 +1,4 @@
+interface:
+  display_name: "Skill 场景切换器"
+  short_description: "在同一项目按角色（研究/产品/文档等）切换 Skill 集合，切换前保存现场快照、切回时精确还原。基于 Skillshare 多配置 + sync，提供 scene save/activate/restore/status/list/doctor（均支持 --dry-run）。"
+  default_prompt: "使用 scene 工具切换当前项目的 Skill 场景（先 save 保存现场，再 activate <preset> 切换预设，restore 回到自定义现场）。"

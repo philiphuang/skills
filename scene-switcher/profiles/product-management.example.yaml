@@ -1,0 +1,16 @@
+sources:
+  skills: /Users/philiphuang/.skills-src
+mode: merge
+targets:
+  claude:
+    skills:
+      path: /Users/philiphuang/.claude/skills
+      include: ["code-review", "codebase-design", "diagnosing-bugs", "domain-modeling", "grill-me", "grill-with-docs", "grilling", "handoff", "implement", "improve-codebase-architecture", "kimi-webbridge", "prototype", "resolving-merge-conflicts", "tdd", "to-questionnaire", "to-spec", "to-tickets", "todo-workflow", "triage", "wait-what", "wayfinder", "wizard", "writing-for-agents"]
+  codex:
+    skills:
+      path: /Users/philiphuang/.codex/skills
+      include: ["code-review", "codebase-design", "diagnosing-bugs", "domain-modeling", "grill-me", "grill-with-docs", "grilling", "handoff", "implement", "improve-codebase-architecture", "kimi-webbridge", "prototype", "resolving-merge-conflicts", "tdd", "to-questionnaire", "to-spec", "to-tickets", "todo-workflow", "triage", "wait-what", "wayfinder", "wizard", "writing-for-agents"]
+  universal:
+    skills:
+      path: /Users/philiphuang/.agents/skills
+      include: ["code-review", "codebase-design", "diagnosing-bugs", "domain-modeling", "grill-me", "grill-with-docs", "grilling", "handoff", "implement", "improve-codebase-architecture", "kimi-webbridge", "prototype", "resolving-merge-conflicts", "tdd", "to-questionnaire", "to-spec", "to-tickets", "todo-workflow", "triage", "wait-what", "wayfinder", "wizard", "writing-for-agents"]

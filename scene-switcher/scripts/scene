@@ -1,0 +1,861 @@
+#!/usr/bin/env bash
+# scene —— Skill 场景切换器（save / restore 纯快照回路）
+#
+# 对应 issue #88（FR1/FR3 + 数据模型 + AC1/AC4/AC7）。
+# 依赖：skillshare（v0.20.25 钉住）、git、jq（+ 标准 shell 工具）。
+# 运行时目录（~/.config/skillshare/、各读取点）不归仓库管理；本脚本只改
+#   1) 已存在读取点目录【内部】的条目（顶层目录永不替换）
+#   2) 项目 .skillshare/profiles/<name>/ 下的快照（默认 <project-root>/.skillshare/profiles，SCENE_SCENES_ROOT 可覆盖）
+#
+# 沙箱/测试隔离：设 SKILLSHARE_CONFIG 指向临时 config，scenes 根自动跟随
+# （可用 SCENE_SCENES_ROOT 覆盖）。
+
+set -euo pipefail
+
+VERSION="0.1.0"
+SCENES_RETENTION=5
+
+# ---------- 配置发现 ----------
+config_file="${SKILLSHARE_CONFIG:-$HOME/.config/skillshare/config.yaml}"
+config_dir="$(dirname "$config_file")"
+scenes_root="${SCENE_SCENES_ROOT:-}"
+# 快照按项目存放（本项目 <project-root>/.skillshare/profiles/<name>/，与全局 profiles 结构一致）
+# 预设 profile：项目级 <root>/.skillshare/profiles/<name>.yaml 优先，其次全局 $config_dir/profiles/
+# SCENE_SCENES_ROOT 显式设置时优先（测试/特殊用途）；无 git 环境回退 <config_dir>/scenes
+resolve_scenes_root() {
+  if [ -z "$scenes_root" ]; then
+    local root
+    if root="$(git rev-parse --show-toplevel 2>/dev/null)"; then
+      scenes_root="$(resolve "$root")/.skillshare/profiles"
+    else
+      scenes_root="$config_dir/scenes"
+    fi
+  fi
+}
+profile_for() { # $1 preset, $2 项目根 -> 输出 profile 路径（项目级优先，其次全局；都无则空）
+  if [ -n "$2" ] && [ -f "$2/.skillshare/profiles/$1.yaml" ]; then
+    printf '%s' "$2/.skillshare/profiles/$1.yaml"
+  elif [ -f "$config_dir/profiles/$1.yaml" ]; then
+    printf '%s' "$config_dir/profiles/$1.yaml"
+  fi
+}
+# 本方案只管理 Codex/Claude 的读取点（issue #88 NFR4 双工具；spec 的
+# ~/.agents/skills + ~/.claude/skills 对应 universal/claude target，加上 codex target）
+scene_targets="${SCENE_TARGETS:-claude codex universal}"
+
+# ---------- 工具函数 ----------
+die() { printf 'scene: %s\n' "$*" >&2; exit 1; }
+log() { printf 'scene: %s\n' "$*" >&2; }
+warn() { printf 'scene: [warn] %s\n' "$*" >&2; }
+
+resolve() { readlink -f "$1" 2>/dev/null || realpath "$1" 2>/dev/null || printf '%s\n' "$1"; }
+
+scene_target_lines() { # $1 status --json -> "name<TAB>path<TAB>mode" 每行（仅 scene_targets 白名单）
+  printf '%s' "$1" | jq -r --arg t "$scene_targets"     '.targets[] | select(.path != null) | select(.name as $n | ($t | split(" ") | index($n))) | [.name, .path, .mode] | @tsv'
+}
+
+managed_link() { # $1 链接原始目标, $2 skills_src -> 0 表示目标在源库内
+  case "$1" in "$2"/*) return 0 ;; esac
+  # 兜底：/tmp vs /private/tmp 等别名归一化后比较
+  case "$(resolve "$1")" in "$(resolve "$2")"/*) return 0 ;; esac
+  return 1
+}
+
+scene_link_managed_readpoint() { # $1 已归一化的链接目标 -> 0 表示在任一 scene 读取点内
+  local p
+  while IFS= read -r p; do
+    [ -n "$p" ] || continue
+    case "$1" in "$p"/*) return 0 ;; esac
+  done <<< "$SCENE_TARGET_PATHS"
+  return 1
+}
+
+yaml_str() { # $1 -> YAML 安全形式（简单名裸写，否则加引号）
+  if printf '%s' "$1" | grep -qE '^[A-Za-z0-9_.-]+$'; then
+    printf '%s' "$1"
+  else
+    printf '"%s"' "$1"
+  fi
+}
+
+write_atomic() { # $1 目标文件；stdin 为内容
+  local tmp="$1.tmp.$$"
+  cat > "$tmp"
+  mv "$tmp" "$1"
+}
+
+acquire_lock() {
+  mkdir -p "$scenes_root"
+  if ! mkdir "$lock_dir" 2>/dev/null; then
+    local pid
+    pid="$(cat "$lock_dir/pid" 2>/dev/null || true)"
+    if { [ -z "$pid" ] || ! kill -0 "$pid" 2>/dev/null; }; then
+      warn "检测到残留锁（${lock_dir}），移除后继续"
+      rm -rf "$lock_dir"
+      mkdir "$lock_dir"
+    else
+      die "另一个 scene 操作进行中（${lock_dir} 存在）——完成后自动释放，或检查是否残留"
+    fi
+  fi
+  printf '%s\n' "$$" > "$lock_dir/pid"
+  trap 'rm -rf "$lock_dir" 2>/dev/null || true' EXIT
+}
+
+archive_snapshot() { # $1 快照目录, $2 slug
+  local ts archive_dir n d
+  ts="$(date +%Y%m%d-%H%M%S)"
+  archive_dir="$scenes_root/.archive"
+  mkdir -p "$archive_dir"
+  mv "$1" "$archive_dir/$2-$ts"
+  log "快照已归档: $archive_dir/$2-$ts"
+  n=0
+  while IFS= read -r d; do
+    n=$((n + 1))
+    if [ "$n" -gt "$SCENES_RETENTION" ]; then
+      rm -rf "$d"
+      log "归档裁剪（保留最近 $SCENES_RETENTION 份）: $d"
+    fi
+  done < <(ls -1dt "$archive_dir"/"$2"-* 2>/dev/null || true)
+}
+
+target_name_to_path() { # $1 快照目录 -> "name<TAB>path" 每行（去引号，含项目层）
+  awk '
+    /^  - name:/ { sub(/^  - name: /, ""); gsub(/^"|"$/, ""); n=$0 }
+    /^    path:/ { sub(/^    path: /, ""); print n "\t" $0 }
+  ' "$1/scene.yaml"
+}
+
+tpath_for() { # $1 快照目录, $2 target name -> path（找不到输出空）
+  awk -F'\t' -v n="$2" '$1==n{print $2}' < <(target_name_to_path "$1")
+}
+
+# ---------- 扫描与分类 ----------
+# scan_target <name> <path> <mode> <layer(global|project)> <snap_dir> <dry> <root>
+# 向 stdout 输出 scene.yaml 的 target 段；global 目标的管理链接名追加到 $managed_log
+scan_target() {
+  local name="$1" path="$2" mode="$3" layer="$4" snap_dir="$5" dry="$6" root="$7"
+  local e n resolved rel
+  local -a ml_n=() ml_s=() ld_n=() ld_q=() um_n=()
+
+  printf '  - name: %s\n' "$(yaml_str "$name")"
+  printf '    path: %s\n' "$path"
+  printf '    mode: %s\n' "$mode"
+  [ "$layer" = "project" ] && printf '    project_layer: true\n'
+
+  for e in "$path"/*; do
+    [ -e "$e" ] || [ -L "$e" ] || continue
+    n="$(basename "$e")"
+    case "$n" in .*) continue ;; esac
+
+    if [ -L "$e" ]; then
+      resolved="$(readlink "$e")"
+      if [ "$layer" = "global" ] && managed_link "$resolved" "$skills_src"; then
+        ml_n+=("$n"); ml_s+=("$resolved")
+      elif [ "$layer" = "project" ] || scene_link_managed_readpoint "$(resolve "$e")"; then
+        # 软链指向另一 scene 读取点（如 ~/.claude/skills -> ../../agents/skills/xxx）：
+        # 目标条目会被 quarantine，软链会悬空 → 一并 quarantine，restore 移回（真实机关键路径）
+        rel="targets/$name/$n"
+        [ "$layer" = "project" ] && rel="project/${name#project:}/$n"
+        ld_n+=("$n"); ld_q+=("$rel")
+        if [ "$dry" = "1" ]; then
+          log "[dry-run] 将移入 quarantine: $path/$n -> $snap_dir/quarantine/$rel"
+        else
+          mkdir -p "$snap_dir/quarantine/$(dirname "$rel")"
+          mv "$e" "$snap_dir/quarantine/$rel"
+          log "quarantine: $path/$n -> $snap_dir/quarantine/$rel"
+        fi
+      else
+        um_n+=("$n")
+      fi
+    elif [ -d "$e" ]; then
+      if [ "$layer" = "global" ]; then
+        rel="targets/$name/$n"
+      else
+        rel="project/${name#project:}/$n"
+      fi
+      ld_n+=("$n"); ld_q+=("$rel")
+      if [ "$dry" = "1" ]; then
+        log "[dry-run] 将移入 quarantine: $path/$n -> $snap_dir/quarantine/$rel"
+      else
+        mkdir -p "$snap_dir/quarantine/$(dirname "$rel")"
+        mv "$e" "$snap_dir/quarantine/$rel"
+        log "quarantine: $path/$n -> $snap_dir/quarantine/$rel"
+      fi
+    else
+      um_n+=("$n")
+    fi
+  done
+
+  printf '    managed_links:\n'
+  local i
+  for i in "${!ml_n[@]}"; do
+    printf '      - name: %s\n        source: %s\n' "$(yaml_str "${ml_n[$i]}")" "${ml_s[$i]}"
+    if [ "$layer" = "global" ] && [ "$dry" != "1" ]; then
+      printf '%s\t%s\n' "$name" "${ml_n[$i]}" >> "$managed_log"
+    fi
+  done
+  printf '    local_dirs:\n'
+  for i in "${!ld_n[@]}"; do
+    printf '      - name: %s\n        quarantine: %s\n' "$(yaml_str "${ld_n[$i]}")" "${ld_q[$i]}"
+  done
+  printf '    unmanaged:\n'
+  for n in "${um_n[@]}"; do
+    printf '      - name: %s\n        note: "symlink target outside skills-src"\n' "$(yaml_str "$n")"
+  done
+}
+
+# ---------- scene save ----------
+cmd_save() {
+  local name="${1:-${cmd_arg:-default}}"
+  valid_name "$name" || die "非法快照名: $name（仅允许 [A-Za-z0-9._-]）"
+  local root snap_dir status_json skillshare_version
+  local tname tpath tmode managed_log tmp_yaml
+  root="$(git rev-parse --show-toplevel 2>/dev/null)" || die "无法识别项目根（不在 git 仓库内？）"
+  root="$(resolve "$root")"
+  snap_dir="$scenes_root/$name"
+
+  if [ -d "$snap_dir" ] && [ -f "$snap_dir/scene.yaml" ]; then
+    if [ "$force" != "1" ]; then
+      die "快照已存在: $snap_dir —— 先 scene restore $name 或 scene save --force"
+    fi
+    if [ "$dry" != "1" ]; then
+      log "覆盖已存在快照（先归档旧快照）"
+      archive_snapshot "$snap_dir" "$name"
+    else
+      log "[dry-run] 将覆盖已存在快照 $snap_dir"
+    fi
+  fi
+
+  status_json="$(skillshare status -g --json)"
+  skills_src="$(printf '%s' "$status_json" | jq -r '.source.path')"
+  skillshare_version="$(skillshare --version 2>/dev/null | head -1 || true)"
+  SCENE_TARGET_PATHS="$(scene_target_lines "$status_json" | cut -f2 | sed 's#/$##' | while read -r tp; do [ -n "$tp" ] && resolve "$tp"; done)"
+
+  [ "$dry" = "1" ] || acquire_lock
+
+  managed_log="$(mktemp)"
+  tmp_yaml="$(mktemp)"
+  trap 'rm -f "${managed_log:-}" "${tmp_yaml:-}"; rm -rf "$lock_dir" 2>/dev/null || true' EXIT
+  : > "$managed_log"
+
+  log "项目根: $root"
+  log "快照目录: $snap_dir"
+
+  {
+    printf 'version: 1\n'
+    printf 'project_root: %s\n' "$root"
+    printf 'slug: %s\n' "$name"
+    printf 'saved_at: %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    printf 'skillshare_version: %s\n' "$skillshare_version"
+    printf 'skills_src: %s\n' "$skills_src"
+    printf 'active_preset: null\n'
+    printf 'targets:\n'
+
+    # 全局层：scene_targets 白名单内的 targets（目录存在者）
+    while IFS=$'\t' read -r tname tpath tmode; do
+      [ -n "$tname" ] || continue
+      tpath="${tpath%/}"
+      [ -d "$tpath" ] || { warn "跳过不存在的 target 目录: $tpath"; continue; }
+      scan_target "$tname" "$tpath" "$tmode" "global" "$snap_dir" "$dry" "$root"
+    done < <(scene_target_lines "$status_json")
+
+    # 项目层：<root>/.agents/skills、.claude/skills、.codex/skills（仅存在者）
+    local pd
+    for pd in .agents/skills .claude/skills .codex/skills; do
+      [ -d "$root/$pd" ] || continue
+      scan_target "project:$(printf '%s' "$pd" | sed 's#^\.##; s#/#-#g')" "$root/$pd" "merge" "project" "$snap_dir" "$dry" "$root"
+    done
+  } > "$tmp_yaml"
+
+  # restore-profile：全局 targets 的管理链接精确 include（S2 结论；空快照用不匹配 glob）
+  {
+    printf 'sources:\n'
+    printf '  skills: %s\n' "$skills_src"
+    printf 'mode: merge\n'
+    printf 'targets:\n'
+    while IFS=$'\t' read -r tname tpath tmode; do
+      [ -n "$tname" ] || continue
+      tpath="${tpath%/}"
+      [ -d "$tpath" ] || continue
+      local inc names
+      names="$(awk -F'\t' -v t="$tname" '$1==t{printf "%s,", $2}' "$managed_log")"
+      if [ -n "$names" ]; then
+        inc="[$(printf '%s' "${names%,}" | sed 's/,/", "/g; s/^/"/; s/$/"/')]"
+      else
+        inc='["__scene_none__"]'
+      fi
+      printf '  %s:\n    skills:\n      path: %s\n      include: %s\n' "$tname" "$tpath" "$inc"
+    done < <(scene_target_lines "$status_json")
+  } > "$tmp_yaml.rp"
+
+  if [ "$dry" = "1" ]; then
+    log "[dry-run] 将原子写 $snap_dir/scene.yaml 与 $snap_dir/restore-profile.yaml"
+    log "[dry-run] 未做任何文件系统变更"
+  else
+    mkdir -p "$snap_dir"
+    write_atomic "$snap_dir/scene.yaml" < "$tmp_yaml"
+    write_atomic "$snap_dir/restore-profile.yaml" < "$tmp_yaml.rp"
+    log "快照已保存: $snap_dir"
+    if ! grep -qs '\.skillshare/profiles/\*/' "$root/.gitignore" 2>/dev/null; then
+      warn "建议把 .skillshare/profiles/*/ 加入 $root/.gitignore（快照含 quarantine 文件副本，不应提交；项目级 profile *.yaml 与 current-profile.yaml 可保留提交）"
+    fi
+  fi
+  rm -f "$managed_log" "$tmp_yaml" "$tmp_yaml.rp"
+}
+
+# ---------- scene activate ----------
+expected_hits_for() { # $1 status --json, $2 skills_src, $3 target name -> include 命中名（每行一个，去重）
+  local inc pat d
+  inc="$(printf '%s' "$1" | jq -r --arg n "$3" '.targets[] | select(.name==$n) | .include[]?' 2>/dev/null || true)"
+  for pat in $inc; do
+    for d in "$2"/$pat; do
+      [ -d "$d" ] && basename "$d"
+    done
+  done | sort -u
+}
+
+cmd_activate() {
+  local preset="$1"
+  [ -n "$preset" ] || die "用法: scene activate <preset>"
+  case "$preset" in */*|*..*|*\\*) die "非法预设名: $preset" ;; esac
+
+  # FR2.1：profile 存在（项目级优先，其次全局）、skillshare 版本钉住、profile 可解析
+  local root0 profile
+  root0="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+  root0="$(resolve "${root0:-}")"
+  profile="$(profile_for "$preset" "$root0")"
+  [ -n "$profile" ] || die "预设 profile 不存在: $preset（项目级与全局均无）"
+  local sv
+  sv="$(skillshare --version 2>/dev/null | head -1 || true)"
+  case "$sv" in *v0.20.25*) ;; *) warn "skillshare 版本非钉住 v0.20.25（当前: ${sv}）——SKILLSHARE_CONFIG 未文档化，建议钉住" ;; esac
+  local profile_status
+  profile_status="$(SKILLSHARE_CONFIG="$profile" skillshare status -g --json 2>/dev/null)" || die "预设 profile 不可解析: $profile"
+
+  # 项目根 + 快照（FR2.2：无活动预设 → 自动先 save，硬约束）
+  local root snap_dir
+  root="$(git rev-parse --show-toplevel 2>/dev/null)" || die "无法识别项目根（不在 git 仓库内？）"
+  root="$(resolve "$root")"
+  snap_dir="$scenes_root/default"
+  if [ ! -f "$snap_dir/scene.yaml" ]; then
+    log "无 default 快照——自动 scene save（FR2.2：先快照再切换，硬约束）"
+    cmd_save default
+    rm -rf "$lock_dir" 2>/dev/null || true
+    snap_dir="$scenes_root/default"
+  fi
+  if [ "$dry" != "1" ]; then
+    [ -n "$snap_dir" ] && [ -f "$snap_dir/scene.yaml" ] || die "快照不可用——先 scene save"
+  fi
+
+  # 当前配置的 scene targets + skills_src
+  local status_json skills_src expected_total covered_total tname tpath tmode
+  status_json="$(skillshare status -g --json)"
+  skills_src="$(printf '%s' "$status_json" | jq -r '.source.path')"
+
+  # 预计算：每个 scene target 的预设 include 命中集合（覆盖性 + 空命中 + 切换后校验共用）
+  local expected_map; expected_map="$(mktemp)"
+  trap 'rm -f "${expected_map:-}"; rm -rf "$lock_dir" 2>/dev/null || true' EXIT
+  expected_total=0
+  covered_total=0
+  while IFS=$'\t' read -r tname tpath tmode; do
+    [ -n "$tname" ] || continue
+    if printf '%s' "$profile_status" | jq -e --arg n "$tname" '.targets[] | select(.name==$n)' >/dev/null 2>&1; then
+      covered_total=$((covered_total + 1))
+    fi
+    while IFS= read -r hit; do
+      [ -n "$hit" ] || continue
+      printf '%s\t%s\n' "$tname" "$hit" >> "$expected_map"
+      expected_total=$((expected_total + 1))
+    done < <(expected_hits_for "$profile_status" "$skills_src" "$tname")
+  done < <(scene_target_lines "$status_json")
+
+  if [ "$covered_total" -lt "$(scene_target_lines "$status_json" | grep -c . || true)" ]; then
+    local uncovered
+    uncovered="$(scene_target_lines "$status_json" | cut -f1 | while read -r tn; do
+      [ -n "$tn" ] || continue
+      printf '%s' "$profile_status" | jq -e --arg n "$tn" '.targets[] | select(.name==$n)' >/dev/null 2>&1 || printf '%s ' "$tn"
+    done)"
+    die "预设 ${preset} 未覆盖 scene target: ${uncovered}——预设期会泄漏自定义 Skill；请补全 profiles/${preset}.yaml 的 targets"
+  fi
+  if [ "$expected_total" -eq 0 ]; then
+    die "预设 ${preset} 的 include 命中为空——activate 拒绝执行；请检查 profiles/${preset}.yaml 的 include"
+  fi
+
+  if [ "$dry" = "1" ]; then
+    log "[dry-run] 将执行: SKILLSHARE_CONFIG=$profile skillshare sync -g（预设 include 共命中 $expected_total 个 skill）"
+    log "[dry-run] 切换后校验全局层只含预设 include、项目层无 Skill，然后写 active_preset: $preset"
+    log "[dry-run] 未做任何文件系统变更"
+    return 0
+  fi
+
+  acquire_lock
+  trap 'rm -f "${expected_map:-}"; rm -rf "$lock_dir" 2>/dev/null || true' EXIT
+
+  # FR2.3：执行切换
+  log "执行 skillshare sync（profile: ${preset}）..."
+  SKILLSHARE_CONFIG="$profile" skillshare sync -g
+
+  # FR2.4：切换后校验
+  local issues pd e b e2 b2 resolved le
+  issues=""
+  for pd in .agents/skills .claude/skills .codex/skills; do
+    [ -d "$root/$pd" ] || continue
+    local left
+    left=""
+    for e in "$root/$pd"/*; do
+      [ -e "$e" ] || [ -L "$e" ] || continue
+      b="$(basename "$e")"
+      case "$b" in .*) continue ;; esac
+      left="${left}${b} "
+    done
+    [ -z "$left" ] || issues="${issues}项目层 ${pd} 仍有条目: ${left}; "
+  done
+  while IFS=$'\t' read -r tname tpath tmode; do
+    [ -n "$tname" ] || continue
+    tpath="${tpath%/}"
+    [ -d "$tpath" ] || continue
+    le=""
+    for e2 in "$tpath"/*; do
+      [ -e "$e2" ] || [ -L "$e2" ] || continue
+      b2="$(basename "$e2")"
+      case "$b2" in .*) continue ;; esac
+      if [ -d "$e2" ] && [ ! -L "$e2" ]; then le="${le}${b2} "; fi
+    done
+    [ -z "$le" ] || issues="${issues}全局层 ${tname} 仍含本地目录: ${le}; "
+    for e2 in "$tpath"/*; do
+      [ -L "$e2" ] || continue
+      b2="$(basename "$e2")"
+      case "$b2" in .*) continue ;; esac
+      if managed_link "$(readlink "$e2")" "$skills_src"; then
+        if ! grep -qwF "$b2" <(awk -F'\t' -v t="$tname" '$1==t{print $2}' "$expected_map"); then
+          issues="${issues}全局层 ${tname} 含预设外管理链接: ${b2}; "
+        fi
+      fi
+    done
+  done < <(scene_target_lines "$status_json")
+  if [ -n "$issues" ]; then
+    die "切换后校验失败：${issues}请执行 scene restore 回到快照状态"
+  fi
+
+  # 写 active_preset（原子）
+  local tmp
+  tmp="$(mktemp)"
+  sed "s/^active_preset: .*/active_preset: $preset/" "$snap_dir/scene.yaml" > "$tmp"
+  mv "$tmp" "$snap_dir/scene.yaml"
+
+  warn "预设期间请勿提交 git（quarantine 会使项目 Git 暂时显示删除，restore 后恢复）"
+  warn "Codex 会话内若技能列表未更新（含已消失 skill 仍可见），请重启 Codex（S1 结论）"
+  log "已激活预设: ${preset}（scene restore 可随时回到自定义现场）"
+}
+
+# ---------- scene status / list / doctor ----------
+snapshot_expected_names() { # $1 快照目录, $2 类型(managed|all) -> "<tname>\t<name>" 每行
+  # 类型 all = 管理链接+本地目录+unmanaged；managed = 仅管理链接
+  awk -v t="$2" '
+    /^  - name:/ { sub(/^  - name: /, ""); gsub(/^"|"$/, ""); n=$0; sec="" }
+    /^    managed_links:/ { if (t=="managed" || t=="all") sec="ml" }
+    /^    local_dirs:/ { if (t=="all") sec="ld" }
+    /^    unmanaged:/ { if (t=="all") sec="um" }
+    /^      - name:/ && sec!="" { sub(/^      - name: /, ""); print n "\t" $0 }
+  ' "$1/scene.yaml"
+}
+
+cmd_status() {
+  local name="${cmd_arg:-default}" root snap_dir active saved qcount
+  valid_name "$name" || die "非法快照名: $name（仅允许 [A-Za-z0-9._-]）"
+  root="$(git rev-parse --show-toplevel 2>/dev/null)" || die "无法识别项目根（不在 git 仓库内？）"
+  root="$(resolve "$root")"
+  snap_dir="$scenes_root/$name"
+  if [ ! -f "$snap_dir/scene.yaml" ]; then
+    log "场景: 自定义（无名为 ${name} 的快照）"
+    return 0
+  fi
+  active="$(sed -n 's/^active_preset: //p' "$snap_dir/scene.yaml" | head -1)"
+  [ "$active" = "null" ] || [ -z "$active" ] && active="自定义"
+  saved="$(sed -n 's/^saved_at: //p' "$snap_dir/scene.yaml" | head -1)"
+  qcount="$(find "$snap_dir/quarantine" -mindepth 3 -maxdepth 3 2>/dev/null | wc -l | tr -d ' ')"
+  log "场景: ${active}"
+  log "快照: ${snap_dir}（saved_at: ${saved}）"
+  log "quarantine 顶层条目: ${qcount}"
+
+  # 漂移报告：全局层 targets 与项目层，对照快照清单
+  local status_json tname tpath tmode e b expected_file
+  status_json="$(skillshare status -g --json)"
+  expected_file="$(mktemp)"
+  snapshot_expected_names "$snap_dir" all > "$expected_file"
+  while IFS=$'\t' read -r tname tpath tmode; do
+    [ -n "$tname" ] || continue
+    tpath="${tpath%/}"
+    [ -d "$tpath" ] || continue
+    local added
+    added=""
+    for e in "$tpath"/*; do
+      [ -e "$e" ] || [ -L "$e" ] || continue
+      b="$(basename "$e")"
+      case "$b" in .*) continue ;; esac
+      if ! grep -qxF "$(printf '%s\t%s' "$tname" "$b")" "$expected_file"; then added="${added}${b} "; fi
+    done
+    [ -z "$added" ] || log "漂移: ${tname} 预设期新增条目: ${added}"
+  done < <(scene_target_lines "$status_json")
+  rm -f "$expected_file"
+  for e in "$root"/.agents/skills "$root"/.claude/skills "$root"/.codex/skills; do
+    [ -d "$e" ] || continue
+    local pl
+    pl=""
+    for b in "$e"/*; do
+      [ -e "$b" ] || [ -L "$b" ] || continue
+      case "$(basename "$b")" in .*) continue ;; esac
+      pl="${pl}$(basename "$b") "
+    done
+    [ -z "$pl" ] || log "项目层 ${e#$root/} 有条目: ${pl}"
+  done
+}
+
+cmd_list() {
+  local f d saved proot
+  proot="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+  proot="$(resolve "${proot:-}")"
+  log "预设 profiles（全局 ${config_dir}/profiles/；项目级 ${proot:-<无>}/.skillshare/profiles/）:"
+  for f in "$config_dir"/profiles/*.yaml; do
+    [ -f "$f" ] || continue
+    log "  - $(basename "$f" .yaml)（全局）"
+  done
+  if [ -n "$proot" ]; then
+    for f in "$proot"/.skillshare/profiles/*.yaml; do
+      [ -f "$f" ] || continue
+      case "$(basename "$f")" in current-profile.yaml) continue ;; esac
+      log "  - $(basename "$f" .yaml)（项目级）"
+    done
+  fi
+  log "现场快照（${scenes_root}/）:"
+  for d in "$scenes_root"/*/; do
+    [ -d "$d" ] || continue
+    case "$(basename "$d")" in .*) continue ;; esac
+    [ -f "$d/scene.yaml" ] || continue
+    saved="$(sed -n 's/^saved_at: //p' "$d/scene.yaml" | head -1)"
+    log "  - $(basename "$d")（saved_at: ${saved}）"
+  done
+  local narch
+  narch="$(find "$scenes_root/.archive" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l | tr -d ' ')"
+  log "归档快照: ${narch} 份（保留最近 5 份）"
+}
+
+cmd_doctor() {
+  local issues="" status_json tname tpath tmode sv pid f d src
+  status_json="$(skillshare status -g --json)"
+  while IFS=$'\t' read -r tname tpath tmode; do
+    [ -n "$tname" ] || continue
+    tpath="${tpath%/}"
+    if [ -d "$tpath" ] && [ ! -L "$tpath" ]; then
+      log "ok: 读取目录 ${tname} = ${tpath}（真实目录）"
+    else
+      issues="${issues}读取目录 ${tname} 缺失或非真实目录: $tpath; "
+    fi
+  done < <(scene_target_lines "$status_json")
+  sv="$(skillshare --version 2>/dev/null | head -1 || true)"
+  case "$sv" in *v0.20.25*) log "ok: skillshare ${sv}" ;; *) issues="${issues}skillshare 版本非钉住 v0.20.25（当前 ${sv}）; " ;; esac
+  local proot
+  proot="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+  proot="$(resolve "${proot:-}")"
+  local f0
+  for f0 in "$config_dir"/profiles/*.yaml "$proot"/.skillshare/profiles/*.yaml; do
+    [ -f "$f0" ] || continue
+    case "$(basename "$f0")" in current-profile.yaml) continue ;; esac
+    if SKILLSHARE_CONFIG="$f0" skillshare status -g --json >/dev/null 2>&1; then
+      log "ok: profile $(basename "$f0") 可解析"
+    else
+      issues="${issues}profile 不可解析: $f0; "
+    fi
+  done
+  if [ ! -d "$config_dir/profiles" ]; then
+    issues="${issues}全局 profiles 目录不存在: $config_dir/profiles（activate 需要）; "
+  fi
+  if [ -d "$lock_dir" ]; then
+    pid="$(cat "$lock_dir/pid" 2>/dev/null || true)"
+    if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
+      log "ok: 锁由存活进程持有（pid ${pid}）"
+    else
+      issues="${issues}残留锁: ${lock_dir}（进程 ${pid:-未知} 不存在，scene 会自动清理）; "
+    fi
+  else
+    log "ok: 无锁"
+  fi
+  local sd
+  for sd in "$scenes_root"/*/; do
+    [ -d "$sd" ] || continue
+    case "$(basename "$sd")" in .*) continue ;; esac
+    if [ ! -f "$sd/scene.yaml" ]; then issues="${issues}快照缺 scene.yaml: $sd; "; continue; fi
+    [ -f "$sd/restore-profile.yaml" ] || issues="${issues}快照缺 restore-profile.yaml: $sd; "
+    while read -r src; do
+      [ -e "$src" ] || issues="${issues}快照 $sd 管理链接源失效: $src; "
+    done < <(awk '/^        source: /{print $2}' "$sd/scene.yaml")
+    local q1
+    for q1 in "$sd"/quarantine/targets/*; do
+      [ -d "$q1" ] || continue
+      tname="$(basename "$q1")"
+      awk -F'\t' -v n="$tname" '$1==n{found=1} END{exit !found}' < <(target_name_to_path "$sd") || issues="${issues}孤儿 quarantine（快照无 target ${tname}）: $q1; "
+    done
+  done
+  if [ -n "$issues" ]; then
+    die "doctor 发现问题：${issues}"
+  fi
+  log "doctor: 全部检查通过"
+}
+
+# ---------- scene profile（skill-profile 全局命令的后端） ----------
+cmd_profile() { # scene profile [name]：无参保存当前 skill 集合为项目 profile；带参切换
+  local name="$1" root pd
+  root="$(git rev-parse --show-toplevel 2>/dev/null)" || die "无法识别项目根（不在 git 仓库内？）"
+  root="$(resolve "$root")"
+  pd="$root/.skillshare/profiles"
+  if [ -n "$name" ]; then
+    # 切换：复用 activate（项目级 profile 优先、校验、sync、active_preset）
+    cmd_activate "$name"
+    mkdir -p "$pd"
+    write_atomic "$pd/current-profile.yaml" <<< "$name"
+    log "当前 profile: ${name}（已记录到 .skillshare/profiles/current-profile.yaml）"
+    return 0
+  fi
+  # 无参：把当前读取点的管理链接集合保存为项目 profile（名字取 current-profile，空则 default）
+  local cur
+  cur=""
+  if [ -f "$pd/current-profile.yaml" ]; then
+    cur="$(tr -d '[:space:]' < "$pd/current-profile.yaml")"
+  fi
+  [ -n "$cur" ] || cur="default"
+  valid_name "$cur" || die "非法 profile 名: $cur（仅允许 [A-Za-z0-9._-]）"
+  local status_json skills_src names inc tname tpath tmode e resolved
+  status_json="$(skillshare status -g --json)"
+  skills_src="$(printf '%s' "$status_json" | jq -r '.source.path')"
+  inc=""
+  while IFS=$'\t' read -r tname tpath tmode; do
+    [ -n "$tname" ] || continue
+    tpath="${tpath%/}"
+    [ -d "$tpath" ] || continue
+    for e in "$tpath"/*; do
+      [ -L "$e" ] || continue
+      resolved="$(readlink "$e")"
+      if managed_link "$resolved" "$skills_src"; then inc="$inc $(basename "$e")"; fi
+    done
+  done < <(scene_target_lines "$status_json")
+  names="$(printf '%s\n' $inc | grep -v '^$' | sort -u | tr '\n' ' ' | sed 's/ *$//')"
+  [ -n "$names" ] || die "当前读取点没有可保存的管理链接——先确保读取点有 skill"
+  mkdir -p "$pd"
+  local tmp; tmp="$(mktemp)"
+  {
+    printf 'sources:\n  skills: %s\nmode: merge\ntargets:\n' "$skills_src"
+    while IFS=$'\t' read -r tname tpath tmode; do
+      [ -n "$tname" ] || continue
+      tpath="${tpath%/}"
+      [ -d "$tpath" ] || continue
+      printf '  %s:\n    skills:\n      path: %s\n      include: [%s]\n' "$tname" "$tpath" "$(printf '%s' "$names" | sed 's/ /", "/g; s/^/"/; s/$/"/')"
+    done < <(scene_target_lines "$status_json")
+  } > "$tmp"
+  mv "$tmp" "$pd/$cur.yaml"
+  write_atomic "$pd/current-profile.yaml" <<< "$cur"
+  log "已保存当前 skill 集合为项目 profile: ${cur}（.skillshare/profiles/${cur}.yaml）"
+  warn "建议把 .skillshare/profiles/*/ 加入 $root/.gitignore（快照目录）；profile *.yaml 与 current-profile.yaml 可提交共享"
+}
+
+# ---------- scene restore ----------
+valid_name() { # $1 快照/预设名 -> 0 合法（仅 [A-Za-z0-9._-]，防路径穿越）
+  case "$1" in
+    ""|*/*|*..*|*\\*) return 1 ;;
+    *) printf '%s' "$1" | grep -qE '^[A-Za-z0-9._-]+$' ;;
+  esac
+}
+
+cmd_restore() {
+  local name="${cmd_arg:-default}" root snap_dir cr
+  valid_name "$name" || die "非法快照名: $name（仅允许 [A-Za-z0-9._-]）"
+  root="$(git rev-parse --show-toplevel 2>/dev/null)" || die "无法识别项目根（不在 git 仓库内？）"
+  root="$(resolve "$root")"
+
+  snap_dir="$scenes_root/$name"
+  if [ ! -f "$snap_dir/scene.yaml" ]; then
+    log "没有名为 ${name} 的快照（${snap_dir}）——当前状态即还原后状态"
+    exit 0
+  fi
+  cr="$(sed -n 's/^project_root: //p' "$snap_dir/scene.yaml" | head -1)"
+  if [ -n "$cr" ] && [ "$cr" != "$root" ]; then
+    warn "快照 ${name} 的 project_root（$cr）与当前项目根（${root}）不一致——仍按快照还原"
+  fi
+
+  # 1. 校验快照完整：每个管理链接的源路径仍存在（不存在 → 警告跳过，不中断）
+  local src_missing
+  src_missing="$(awk '/^        source: /{print $2}' "$snap_dir/scene.yaml" | while read -r s; do [ -e "$s" ] || printf '%s\n' "$s"; done)"
+  if [ -n "$src_missing" ]; then
+    warn "以下管理链接源路径已失效，restore 将跳过（不中断）:"
+    printf '%s\n' "$src_missing" | while read -r s; do warn "  $s"; done
+  fi
+
+  # 2. 捕获预设期新增（sync 前，FR3.4）：既不在快照清单、也不在活动预设 include 命中的管理链接
+  local status_json skills_src active_preset expected_all preset_hits extra_file tname tpath tmode
+  status_json="$(skillshare status -g --json)"
+  skills_src="$(printf '%s' "$status_json" | jq -r '.source.path')"
+  active_preset="$(sed -n 's/^active_preset: //p' "$snap_dir/scene.yaml" | head -1)"
+  expected_all="$(mktemp)"
+  preset_hits="$(mktemp)"
+  extra_file="$(mktemp)"
+  snapshot_expected_names "$snap_dir" all > "$expected_all"
+  if [ "$active_preset" != "null" ] && [ -n "$active_preset" ]; then
+    local act_profile
+    act_profile="$(profile_for "$active_preset" "$root")"
+    if [ -n "$act_profile" ]; then
+      local pstatus hit
+      pstatus="$(SKILLSHARE_CONFIG="$act_profile" skillshare status -g --json 2>/dev/null || true)"
+      while IFS=$'\t' read -r tname tpath tmode; do
+        while IFS= read -r hit; do
+          [ -n "$hit" ] && printf '%s\t%s\n' "$tname" "$hit" >> "$preset_hits"
+        done < <(expected_hits_for "$pstatus" "$skills_src" "$tname")
+      done < <(scene_target_lines "$status_json")
+    else
+      warn "active_preset=${active_preset} 的 profile 缺失——新增保留判断退化为快照外全部保留"
+    fi
+  fi
+  while IFS=$'\t' read -r tname tpath tmode; do
+    [ -n "$tname" ] || continue
+    tpath="${tpath%/}"
+    [ -d "$tpath" ] || continue
+    local e2 b2 line
+    for e2 in "$tpath"/*; do
+      [ -L "$e2" ] || continue
+      b2="$(basename "$e2")"
+      case "$b2" in .*) continue ;; esac
+      if managed_link "$(readlink "$e2")" "$skills_src"; then
+        line="$(printf '%s\t%s' "$tname" "$b2")"
+        if ! grep -qxF "$line" "$expected_all" && ! grep -qxF "$line" "$preset_hits"; then
+          printf '%s\t%s\t%s\n' "$tname" "$b2" "$(readlink "$e2")" >> "$extra_file"
+        fi
+      fi
+    done
+  done < <(scene_target_lines "$status_json")
+
+  # 3. dry-run：只预告
+  if [ "$dry" = "1" ]; then
+    log "[dry-run] 将执行: SKILLSHARE_CONFIG=$snap_dir/restore-profile.yaml skillshare sync -g"
+    log "[dry-run] 将移回 quarantine 内容并归档快照"
+    log "[dry-run] 未做任何文件系统变更"
+    rm -f "$expected_all" "$preset_hits" "$extra_file"
+    return 0
+  fi
+
+  acquire_lock
+  trap 'rm -f "${expected_all:-}" "${preset_hits:-}" "${extra_file:-}"; rm -rf "$lock_dir" 2>/dev/null || true' EXIT
+
+  # 4. 用 restore-profile 重建管理链接集合（S2：include 白名单精确重建；S3：先 sync 后移回）
+  log "执行 skillshare sync（restore-profile）..."
+  SKILLSHARE_CONFIG="$snap_dir/restore-profile.yaml" skillshare sync -g
+
+  # 5. 移回 quarantine（全局 + 项目层）
+  local qroot="$snap_dir/quarantine"
+  if [ -d "$qroot" ]; then
+    local q1
+    for q1 in "$qroot"/targets/*; do
+      [ -d "$q1" ] || continue
+      local qname entry dest
+      qname="$(basename "$q1")"
+      dest="$(tpath_for "$snap_dir" "$qname")"
+      if [ -z "$dest" ]; then
+        warn "quarantine 目标未知（scene.yaml 无 target ${qname}），跳过 ${q1}"
+        continue
+      fi
+      for entry in "$q1"/*; do
+        [ -e "$entry" ] || [ -L "$entry" ] || continue
+        mv "$entry" "$dest/"
+        log "还原: $entry -> $dest/$(basename "$entry")"
+      done
+    done
+    for q1 in "$qroot"/project/*; do
+      [ -d "$q1" ] || continue
+      local pname pentry pdest
+      pname="project:$(basename "$q1")"
+      pdest="$(tpath_for "$snap_dir" "$pname")"
+      if [ -z "$pdest" ]; then
+        warn "quarantine 项目层目标未知（scene.yaml 无 ${pname}），跳过 ${q1}"
+        continue
+      fi
+      for pentry in "$q1"/*; do
+        [ -e "$pentry" ] || [ -L "$pentry" ] || continue
+        mv "$pentry" "$pdest/"
+        log "还原: $pentry -> $pdest/$(basename "$pentry")"
+      done
+    done
+  fi
+
+  # 6. 保留新增（FR3.4/AC5）：重新建立预设期新增的管理链接
+  local et eb esrc
+  while IFS=$'\t' read -r et eb esrc; do
+    [ -n "$et" ] || continue
+    local dest2
+    dest2="$(tpath_for "$snap_dir" "$et")"
+    [ -n "$dest2" ] && [ -d "$dest2" ] || continue
+    { [ -e "$dest2/$eb" ] || [ -L "$dest2/$eb" ]; } && continue
+    ln -s "$esrc" "$dest2/$eb"
+    log "保留预设期新增: ${et}/${eb} -> ${esrc}"
+  done < "$extra_file"
+  rm -f "$expected_all" "$preset_hits" "$extra_file"
+
+  # 7. 归档快照（保留最近 5 份）
+  local slug2
+  slug2="$(sed -n 's/^slug: //p' "$snap_dir/scene.yaml" | head -1)"
+  archive_snapshot "$snap_dir" "$slug2"
+  # 8. 清空 current-profile（回到自定义现场；skill-profile 无参保存时名字回落 default）
+  if [ -f "$root/.skillshare/profiles/current-profile.yaml" ]; then
+    : > "$root/.skillshare/profiles/current-profile.yaml"
+    log "current-profile 已清空（回到自定义现场，下次 skill-profile 保存默认用 default）"
+  fi
+  log "restore 完成"
+}
+
+usage() {
+  cat <<EOF
+scene —— Skill 场景切换器（save/restore 快照回路，v${VERSION}）
+
+用法:
+  scene save [name] [--force] [--dry-run]   保存现场快照为 <name>（缺省 default；quarantine 项目自定义 skill）
+  scene activate <preset> [--dry-run]       切换到预设 profile（无 default 快照时自动先 save）
+  scene profile [name]                      无参：保存当前 skill 集合为项目 profile；带参：切换并记录 current-profile
+  scene restore [name] [--dry-run]          按 <name> 从快照精确还原（缺省 default）
+  scene status [name]                       当前场景/快照时间/quarantine/漂移报告
+  scene list                                预设与快照清单
+  scene doctor                              体检：读取目录/版本/profile/锁/快照完整性
+
+说明:
+  - 在 git 项目根内执行；读取点与 targets 从当前 skillshare 全局配置派生
+  - SKILLSHARE_CONFIG 可指向其它配置（沙箱/预设 profile）；SCENE_SCENES_ROOT 可覆盖快照根
+  - 顶层读取目录永不删除/替换；一切"移除"= 移入 quarantine 可找回
+EOF
+}
+
+# ---------- 入口 ----------
+cmd=""
+force=0
+dry=0
+cmd_arg=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    save|restore|activate|profile|status|list|doctor|help) cmd="$1"; cmd_arg="" ;;
+    --force) force=1 ;;
+    --dry-run) dry=1 ;;
+    -h|--help) cmd="help" ;;
+    *) case "$cmd" in
+         save|restore|activate|profile|status) [ -z "$cmd_arg" ] && cmd_arg="$1" || die "多余参数: $1" ;;
+         *) die "未知参数: $1（scene help 查看用法）" ;;
+       esac ;;
+  esac
+  shift
+done
+
+resolve_scenes_root
+lock_dir="$scenes_root/.lock"
+
+case "$cmd" in
+  save) cmd_save ;;
+  restore) cmd_restore ;;
+  activate) cmd_activate "$cmd_arg" ;;
+  profile) cmd_profile "$cmd_arg" ;;
+  status) cmd_status ;;
+  list) cmd_list ;;
+  doctor) cmd_doctor ;;
+  help|"") usage ;;
+esac
