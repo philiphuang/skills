@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# skill-profile —— 全局 skill profile 切换/保存命令
+# 用法:
+#   skill-profile            保存当前 skill 集合为项目 profile（名字取 current-profile，空则 default）
+#   skill-profile <name>     切换到 <name>（项目级 .skillshare/profiles/<name>.yaml 优先，其次全局）
+# 后端实现见 scene profile；本命令只是薄包装，便于全局 PATH 调用。
+set -euo pipefail
+SELF="$(readlink -f "$0" 2>/dev/null || printf '%s' "$0")"
+SCENE_DIR="$(cd "$(dirname "$SELF")" && pwd)"
+exec "$SCENE_DIR/scene" profile "$@"

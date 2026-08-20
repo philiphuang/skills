@@ -1,0 +1,16 @@
+sources:
+  skills: /Users/philiphuang/.skills-src
+mode: merge
+targets:
+  claude:
+    skills:
+      path: /Users/philiphuang/.claude/skills
+      include: ["domain-modeling", "grill-me", "grill-with-docs", "grilling", "handoff", "kimi-webbridge", "research", "resolving-merge-conflicts", "teach", "to-spec", "todo-workflow", "triage", "wait-what", "wayfinder", "wizard", "writing-for-agents"]
+  codex:
+    skills:
+      path: /Users/philiphuang/.codex/skills
+      include: ["domain-modeling", "grill-me", "grill-with-docs", "grilling", "handoff", "kimi-webbridge", "research", "resolving-merge-conflicts", "teach", "to-spec", "todo-workflow", "triage", "wait-what", "wayfinder", "wizard", "writing-for-agents"]
+  universal:
+    skills:
+      path: /Users/philiphuang/.agents/skills
+      include: ["domain-modeling", "grill-me", "grill-with-docs", "grilling", "handoff", "kimi-webbridge", "research", "resolving-merge-conflicts", "teach", "to-spec", "todo-workflow", "triage", "wait-what", "wayfinder", "wizard", "writing-for-agents"]
