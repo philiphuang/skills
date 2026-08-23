@@ -1,0 +1,26 @@
+# Agent 工作原则
+
+## 卡帕西原则：Spec → Verifier → Agent
+
+agent 工作遵循三层模型（Karpathy）：
+1. **Spec（规格）**：先明确「要做什么」——可验证的目标，不是模糊愿望。
+2. **Verifier（验证器）**：明确「怎么算做对」——可执行的检查（测试/lint/编译）。
+3. **Agent（执行）**：在 spec + verifier 约束下执行，不自由发挥。
+
+配合：紧约束目标（目标越窄越可靠）+ 长链可靠（每步都要可验证）。
+
+## Skill 安装原则
+
+- skill 全局安装到中央库 `~/.skills-src/`（单一来源）。
+- 全局默认不暴露（全局 target 仅 include 控制类 skill 如 skillshare）。
+- 项目级按需启用：`.skillshare/config.yaml` 的 include 白名单列出本项目要的 skill，
+  `skillshare sync -p` 软链生效（零拷贝共享中央库）。
+- 新增 skill 默认不在任何项目 include 内；某项目要用时改该项目 include。
+
+## 通用约定
+
+- 中文沟通（commit/注释/文档）。
+- 不在仓库存储密钥（用 .env + 环境变量）。
+- Skill全局安装，默认全局不启动，软连接到项目，在项目级启用。
+
+<!-- 此文件由 project-daimon skill 生成 -->

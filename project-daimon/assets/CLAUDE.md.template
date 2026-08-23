@@ -1,0 +1,51 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+---
+
+## 开发约定
+
+- **先计划再编码** - 开始编码前先制定实现计划
+- **不确定时咨询用户** - 对需求或实现方式不确定时，必须先询问用户
+- **精确执行** - 只做被要求的事情，不多不少
+- **最小化文件创建** - 除非绝对必要，否则不创建新文件,优先编辑现有文件而非创建新文件
+- **缩进** - 使用 4 个空格（不是 2 个空格）
+- **沟通用语** - 本项目使用中文进行沟通。
+
+---
+
+## Git 工作流
+
+- Commit 消息使用中文，使用 Conventional Commits 格式：`<type>(<scope>): <subject>`
+- 类型：feat/fix/docs/refactor/test/chore/style/perf
+- 自动提交包含所有变更文件
+- 根据修改的文件内容和类型智能生成 commit 消息
+
+---
+
+## 代码规范
+
+### Markdown 格式化
+
+- 使用 IDE 自带的 markdown lint 工具检查格式
+- VSCode 推荐：[markdownlint](https://marketplace.visualstudio.com/items?itemName=DavidAnon.vscode-markdownlint)
+- 配置文件：`.markdownlint.json`
+
+### AI 约定
+
+- **不要专注于格式调整**：使用 IDE 的格式化功能
+- **专注于功能实现**：将精力放在代码逻辑和功能上
+
+
+## 本项目配置了以下 MCP 服务器：
+
+<!-- MCP_SECTION_PLACEHOLDER -->
+
+## 注意事项
+
+- 请确保所有环境变量已正确配置
+- 如需修改 MCP 配置，请编辑项目根目录的 `.mcp.json`
+- Skill全局安装，默认全局不启动，软连接到项目，在项目级启用。
+
+<!-- 此文件由 project-scaffold skill 生成 -->
