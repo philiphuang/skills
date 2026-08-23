@@ -151,8 +151,8 @@ reason: string            // 一句话路由理由（中文）
 
 ## 引用资料
 
-- 信号词表：`src/jf-router/research/signal-words.md`
-- 工作法来源：`src/工作法/高保真/高保真工作法.md`
+- 信号词表：`references/signal-words.md`
+- 工作法来源：`src/工作法/高保真/高保真工作法.md`（skills-factory 仓库内；仓库外不可用，路由分类不受影响）
 
 ## 项目适配
 
