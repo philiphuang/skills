@@ -70,7 +70,7 @@ python3 -m scripts.init_workspace "<项目根目录>"
 
 ```yaml
 docness:
-  root: .
+  "root": .
   收件箱: 收件箱
   知识库: 知识库
   工作台: 工作台
