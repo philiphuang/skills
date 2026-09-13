@@ -20,7 +20,11 @@ version: 1.0.0
 
 - **skills-factory**（本仓库）：开发源仓，skill 的唯一真相来源在 `products/<skill>/`。
 - **skills-repo/**：本仓库内的独立 git 子目录，remote 指向 `philiphuang/skills`，是发布仓。
-- **已发布**：`skills-repo/<skill>/SKILL.md` 存在，表示该 skill 已经过发布流程进入发布仓。
+- **分组**：发布仓下按用途分区——`jiaofu/`（jf-* 交付套件）、`env-harness/`（其余工具类），
+  以及**顶层**（管理本仓自身的工具，目前是 `skill-publisher` 自己）。
+  分组由 skill 名自动推导（`jf-` 前缀 → `jiaofu/`，本仓管理工具 → 顶层，其余 → `env-harness/`），无需手动指定。
+- **已发布**：`skills-repo/<group>/<skill>/SKILL.md` 存在（顶层分组无 `<group>` 层），
+  表示该 skill 已经过发布流程进入发布仓。
 - **目标目录**：用户希望安装 skill 的项目目录。`skillshare` 会在该目录下以项目模式（`-p`）工作，读取/创建 `.skillshare/config.yaml` 并使用其中已有的 target 配置。
 
 ## 用法
@@ -36,9 +40,9 @@ python3 products/skill-publisher/scripts/skill_publisher.py publish todo-workflo
 ```
 
 流程：
-1. 从 `products/todo-workflow/` 复制到 `skills-repo/todo-workflow/`。
-2. 自动剥离 `tests/`、`evals/`、`__pycache__/`、`*.pyc` 等测试/开发文件。
-3. 在 `skills-repo/` 中 `git add/commit/push` 到 `origin`。
+1. 从 `products/todo-workflow/` 复制到 `skills-repo/env-harness/todo-workflow/`。
+2. 自动剥离 `tests/`、`evals/`、`__pycache__/`、`*.pyc`，以及散落在 `scripts/`、`router/` 等目录的测试文件（`test_*.py`、`*_test.py`、`conftest.py`）。
+3. 在 `skills-repo/` 中 `git add/commit/push` 该分组路径到 `origin`。
 
 ### 发布并安装到目标目录
 
@@ -47,19 +51,19 @@ python3 products/skill-publisher/scripts/skill_publisher.py publish todo-workflo
 ```
 
 流程：
-1. 检查 `skills-repo/<skill>/SKILL.md` 是否存在。
+1. 检查 `skills-repo/<group>/<skill>/SKILL.md` 是否存在。
    - 不存在：先走完整发布流程（products → skills-repo → git push）。
    - 存在：跳过发布。
 2. 进入 `<target-dir>`，若不存在则创建。
 3. 用 `skillshare init -p` 初始化项目配置（若已初始化则跳过）。
-4. 用 `skillshare install philiphuang/skills -s <skill> -p` 从 GitHub 安装 skill 到项目 source。
+4. 用 `skillshare install philiphuang/skills/<group>/<skill> -p` 从 GitHub 安装 skill 到项目 source（顶层工具无 `<group>` 层）。
 5. 执行 `skillshare sync -p`，按项目 `.skillshare/config.yaml` 中已有的 target 配置同步到目标目录。
 
 ### 选项
 
 - `--message` / `-m`：自定义 git commit 信息（默认 `release: <skill-name>`）
 - `--dry-run` / `-n`：预览，不实际执行
-- `--force` / `-f`：发布时直接覆盖 `skills-repo/` 中已存在的同名 skill；安装时强制覆盖
+- `--force` / `-f`：发布时直接覆盖 `skills-repo/<group>/` 中已存在的同名 skill；安装时强制覆盖
 - `--remote <repo>`：指定 GitHub 发布仓（默认 `philiphuang/skills`）
 
 ## 返回码

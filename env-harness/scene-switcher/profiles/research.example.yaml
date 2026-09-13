@@ -1,0 +1,16 @@
+sources:
+  skills: ~/.skills-src
+mode: merge
+targets:
+  claude:
+    skills:
+      path: ~/.claude/skills
+      include: ["domain-modeling", "grill-me", "grill-with-docs", "grilling", "handoff", "kimi-webbridge", "research", "resolving-merge-conflicts", "teach", "to-spec", "todo-workflow", "triage", "wait-what", "wayfinder", "wizard", "writing-for-agents"]
+  codex:
+    skills:
+      path: ~/.codex/skills
+      include: ["domain-modeling", "grill-me", "grill-with-docs", "grilling", "handoff", "kimi-webbridge", "research", "resolving-merge-conflicts", "teach", "to-spec", "todo-workflow", "triage", "wait-what", "wayfinder", "wizard", "writing-for-agents"]
+  universal:
+    skills:
+      path: ~/.agents/skills
+      include: ["domain-modeling", "grill-me", "grill-with-docs", "grilling", "handoff", "kimi-webbridge", "research", "resolving-merge-conflicts", "teach", "to-spec", "todo-workflow", "triage", "wait-what", "wayfinder", "wizard", "writing-for-agents"]

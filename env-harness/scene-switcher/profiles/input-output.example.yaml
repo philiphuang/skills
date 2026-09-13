@@ -1,0 +1,16 @@
+sources:
+  skills: ~/.skills-src
+mode: merge
+targets:
+  claude:
+    skills:
+      path: ~/.claude/skills
+      include: ["ask-matt", "handoff", "triage"]
+  codex:
+    skills:
+      path: ~/.codex/skills
+      include: ["ask-matt", "handoff", "triage"]
+  universal:
+    skills:
+      path: ~/.agents/skills
+      include: ["ask-matt", "handoff", "triage"]
