@@ -65,7 +65,7 @@ skill-profile <name>      切换到 <name>（项目级 .skillshare/profiles/<nam
 - **读取点**：全局层只管理 `claude`/`codex`/`universal` 三个 skillshare target（对应
   `~/.claude/skills`、`~/.codex/skills`、`~/.agents/skills`，可用 `SCENE_TARGETS` 覆盖），
   项目层扫描 `<repo>/.agents/skills`、`<repo>/.claude/skills`、`<repo>/.codex/skills`
-- **条目分类**（写 scene.yaml）：管理链接（软链且目标在 `~/.skills-src/` 内）、本地目录（移入 quarantine，
+- **条目分类**（写 scene.yaml）：管理链接（软链且目标在 `/opt/prjs/asserts/skills-src/` 内）、本地目录（移入 quarantine，
   保留原相对路径）、**跨读取点软链**（软链目标在另一 scene 读取点内，如 `~/.claude/skills/lark-base ->
   ../../agents/skills/lark-base`——目标条目被 quarantine 后软链会悬空，故软链本身一并 quarantine，restore 移回）、
   unmanaged（悬空/源外软链——不动、不删，restore 原样保留）
@@ -92,4 +92,4 @@ skill-profile <name>      切换到 <name>（项目级 .skillshare/profiles/<nam
 ## 环境要求
 
 - skillshare v0.20.25（`SKILLSHARE_CONFIG` env 未文档化 → 钉住此版本）
-- 中央库 `~/.skills-src`（Skillshare 单一来源，scene 只读它）
+- 中央库 `/opt/prjs/asserts/skills-src`（Skillshare 单一来源，scene 只读它）

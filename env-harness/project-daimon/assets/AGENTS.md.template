@@ -125,7 +125,7 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 ### Skill 安装原则
 
-- skill 全局安装到中央库 `~/.skills-src/`（单一来源）。
+- skill 全局安装到中央库 `/opt/prjs/asserts/skills-src/`（单一来源）。
 - 全局默认不暴露（全局 target 仅 include 控制类 skill 如 skillshare）。
 - 项目级按需启用：`.skillshare/config.yaml` 的 include 白名单列出本项目要的 skill，
   `skillshare sync -p` 软链生效（零拷贝共享中央库）。

@@ -10,7 +10,7 @@ Usage:
 
     agent-envs:   Comma-separated list: universal, claude, kimidesktop, all
     include-list: Comma-separated list of skill names to whitelist
-    --central-src: Path to central skills source (default: ~/.skills-src)
+    --central-src: Path to central skills source (default: /opt/prjs/asserts/skills-src)
     --dry-run:     Preview config without writing or syncing
     --kimi-path:   Custom path for Kimi Desktop skills directory
 """
@@ -63,8 +63,8 @@ def parse_args():
         help="Comma-separated list of skill names to whitelist"
     )
     parser.add_argument(
-        "--central-src", type=str, default="~/.skills-src",
-        help="Path to central skills source (default: ~/.skills-src)"
+        "--central-src", type=str, default="/opt/prjs/asserts/skills-src",
+        help="Path to central skills source (default: /opt/prjs/asserts/skills-src)"
     )
     parser.add_argument(
         "--dry-run", action="store_true",
@@ -263,7 +263,7 @@ def find_real_skill_dirs(project_root: Path) -> list[Path]:
     """Find real directories (non-symlink) under .skillshare/skills/.
 
     Project-level skill copies are redundant: the central user-level library
-    ~/.skills-src is the single source of truth. Only real dirs (not symlinks)
+    /opt/prjs/asserts/skills-src is the single source of truth. Only real dirs (not symlinks)
     are candidates for cleanup — symlinks are the sanctioned distribution form.
 
     Note: if .skillshare/skills/ itself is a symlink (the whole-dir symlink
@@ -287,7 +287,7 @@ def cleanup_project_skill_dirs(project_root: Path, dry_run: bool):
     """Ask the user before removing project-level skill copies (never auto-clean).
 
     .skillshare/skills/ is no longer a skill repository — skills come from the
-    user-level central library ~/.skills-src and are distributed via target
+    user-level central library /opt/prjs/asserts/skills-src and are distributed via target
     symlinks. Real directories found here are redundant copies; removing them
     requires explicit user confirmation.
     """
@@ -297,7 +297,7 @@ def cleanup_project_skill_dirs(project_root: Path, dry_run: bool):
 
     names = ", ".join(d.name for d in sorted(real_dirs))
     print(f"⚠️  检测到 .skillshare/skills/ 下有 {len(real_dirs)} 个真实目录（非软链）: {names}")
-    print("   项目级技能副本已冗余：skill 来源统一为用户级中央库 ~/.skills-src，")
+    print("   项目级技能副本已冗余：skill 来源统一为用户级中央库 /opt/prjs/asserts/skills-src，")
     print("   项目通过 target 软链分发，中央库才是权威。")
 
     if dry_run:

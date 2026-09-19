@@ -115,7 +115,7 @@ skillshare --version
 检查中央库：
 
 ```bash
-test -d ~/.skills-src || echo "请先执行 skillshare init"
+test -d /opt/prjs/asserts/skills-src || echo "请先执行 skillshare init"
 ```
 
 检查运行时依赖（如 Node.js、Python 版本）：
@@ -205,8 +205,8 @@ cp assets/.vscode.extensions.template .vscode/extensions.json
 
 ```bash
 # 安装到中央库（与 skillshare/project-daimon 同级）
-mkdir -p ~/.skills-src/todo-workflow
-cp assets/todo-workflow.SKILL.md.template ~/.skills-src/todo-workflow/SKILL.md
+mkdir -p /opt/prjs/asserts/skills-src/todo-workflow
+cp assets/todo-workflow.SKILL.md.template /opt/prjs/asserts/skills-src/todo-workflow/SKILL.md
 
 # 加入项目 include 白名单（由 setup_skillshare.py 合并处理）
 # 执行 skillshare sync -p 后以同样机制分发到所有 Agent 环境
@@ -306,13 +306,13 @@ python3 scripts/setup_skillshare.py <project-root> <agent-envs> "$MERGED_SKILLS"
 ```
 
 脚本会自动：
-1. 生成/更新 `.skillshare/config.yaml`，`sources.skills` 指向 `~/.skills-src`（用户级单一来源）
+1. 生成/更新 `.skillshare/config.yaml`，`sources.skills` 指向 `/opt/prjs/asserts/skills-src`（用户级单一来源）
 2. 为每个 Agent 环境的 target 配置 `include` 白名单，所有 target 强制 `mode: symlink`。
    **注意**：symlink 模式为整目录软链，include 白名单仅作记录（skillshare 语义下
    symlink 不做逐 skill 过滤）；需要逐 skill 过滤时改用 merge 模式
 3. 检测 `.skillshare/skills/` 下的项目级技能副本（真实目录），**询问用户确认后清理**
    （不自动清理；非 TTY 即 agent/CI 流程自动跳过，不阻塞初始化）
-4. 执行 `skillshare sync -p` 软链 skill 到各 Agent 目录（目录级软链指向 `~/.skills-src`）
+4. 执行 `skillshare sync -p` 软链 skill 到各 Agent 目录（目录级软链指向 `/opt/prjs/asserts/skills-src`）
 
 #### 7. 通过 mcp-bridge 渲染 MCP 服务器（可选）
 
@@ -419,7 +419,7 @@ git commit -m "初始化项目脚手架
 1. **中文沟通**: 所有 commit 消息、代码注释、文档使用中文
 2. **中文目录命名**: 数据流向目录统一中文命名——收件箱 → 知识库 → 发件箱 → 工作台；工作法目录为 `工作法/`
 3. **Markdown 自动提交**: 如果启用 hook，任何 .md 文件修改后立即 `git commit`
-4. **skill 来源统一用户级**: skills 通过 /skillshare 安装到中央库 `~/.skills-src/`（单一来源），项目级通过 `.skillshare/config.yaml` include 白名单启用，target 一律 `mode: symlink`，`skillshare sync -p` 软链生效（零拷贝共享中央库，项目级不保留技能副本）
+4. **skill 来源统一用户级**: skills 通过 /skillshare 安装到中央库 `/opt/prjs/asserts/skills-src/`（单一来源），项目级通过 `.skillshare/config.yaml` include 白名单启用，target 一律 `mode: symlink`，`skillshare sync -p` 软链生效（零拷贝共享中央库，项目级不保留技能副本）
 5. **工作法双线管理**: 项目里管理产出，产出受工作法管理；工作法 = 项目第一公民，AI 使用前先迭代工作法（读它 → 改进它 → 再用它生成产出）；新工作法沉淀到 `工作法/`（不入产出目录）；工作法随主仓库 git 管理
 6. **worktree 管理**: 工作树一律放 `.tmp/.worktrees/`（git 忽略），主仓库只保留主干
 7. **代码格式化**: 使用 IDE 自带的 lint 和格式化工具

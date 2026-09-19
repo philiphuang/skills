@@ -1,5 +1,5 @@
 sources:
-  skills: ~/.skills-src
+  skills: /opt/prjs/asserts/skills-src
 mode: merge
 targets:
   claude:

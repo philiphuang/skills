@@ -132,7 +132,7 @@ def _is_url_ref(line: str, match_start: int) -> bool:
 def _is_untracked_description(line: str) -> bool:
     """判断引用是否出现在纯描述文本中（非文件链接/代码/路径引用上下文）。
 
-    排除：普通散文（...省略号）、环境路径（~/.skills-src/...、.agents/skills/... 等运行时位置）、
+    排除：普通散文（...省略号）、环境路径（/opt/prjs/asserts/skills-src/...、.agents/skills/... 等运行时位置）、
     `docs/` 等文档目录描述。这些不构成"skill 脱离仓库后缺文件"的依赖。
     """
     stripped = line.strip()
@@ -141,7 +141,7 @@ def _is_untracked_description(line: str) -> bool:
         # 只有...才能 这类中文省略用法不算
         if "..." in stripped and not stripped.startswith((".", "/", "`", "[", "-", ">", "~")):
             return True
-    # 运行时环境路径（~/.skills-src、.agents/skills、docs/ 等，非相对依赖）
+    # 运行时环境路径（/opt/prjs/asserts/skills-src、.agents/skills、docs/ 等，非相对依赖）
     if "~/" in line or ".agents/" in line or "docs/" in line or "skills-src" in line:
         return True
     return False
