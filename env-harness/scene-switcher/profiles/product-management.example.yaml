@@ -1,5 +1,5 @@
 sources:
-  skills: ~/.skills-src
+  skills: ~/.local/share/skills-src
 mode: merge
 targets:
   claude:
