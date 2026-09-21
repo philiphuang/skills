@@ -5,7 +5,7 @@ check_demo_separation.py — 客户演示档的「双层分离」门禁（A1–A
 
 演示档是**两棵树**里给客户看的那棵（`render_manifest.py --demo`），要跟设计评审
 那棵物理分开：PM 的注释、编号、页 ID 留在评审树，客户树里只有业务语言。
-本脚本是这条纪律的机器检查——纪律原文见 `products/jf-uxprompt/SKILL.md`
+本脚本是这条纪律的机器检查——纪律原文见 `products/jiaofu/jf-uxprompt/SKILL.md`
 「演示档纪律」。
 
 用法：
@@ -59,7 +59,7 @@ A4 为什么查「console.html 的同层」而不是全树同名文件：本套�
 --- 词表里两个会误伤的词 ---
 
 `注释` 与 `标注` 是业务上可能正当出现的词（例：一个讲文档批注的产品）。
-本脚本照 jf-hifi 原表一并判 ERROR，不设分级——演示档的内容由 manifest 与
+本脚本照合并前 jf-hifi（未发布，已并入本套件）的原表一并判 ERROR，不设分级——演示档的内容由 manifest 与
 渲染器定，我们自己产出跑得过；真出现业务正当命中时，人来看一眼这条 ERROR、
 决定是改词还是改门禁，比门禁自己猜要诚实。报错会带文件名与行号，一眼可判。
 """
@@ -76,7 +76,7 @@ import tempfile
 ERROR = "ERROR"
 WARN = "WARN"
 
-# 演示树里禁止出现的 PM 注释关键词（沿用 jf-hifi 的原表：那份表是对的，
+# 演示树里禁止出现的 PM 注释关键词（沿用上面那张原表：那份表是对的，
 # 出问题的是它**先剥注释再查**——隐藏注释正是它 SKILL.md 禁止的那件事）。
 FORBIDDEN = (
     "设计注释", "内部注释", "交互标注", "设计说明", "客户适配",
@@ -294,11 +294,11 @@ def check_notes(notes_path: str, manifest_path, report: Report) -> None:
     scenes = manifest.get("scenes") or []
     if not scenes:
         report.warn("B2", "manifest 未声明 scenes[]，B 侧无场景可交叉校验"
-                          "（与套件「未安装即降级」同款：不阻塞）")
+                          "（与套件「没配执行者就走内置路径」同款：不阻塞）")
         return
 
     # 交叉校验：每条场景的 id / title / source 都得在产物B 里露面。
-    # 这是替代 jf-hifi 那套 `any(k in text for k in [一个词])` 的判断——
+    # 这是替代合并进来那套 `any(k in text for k in [一个词])` 的判断——
     # 那个近乎恒真，等于没查。id/title/source 全中才证明产物B 真的把
     # manifest 里的场景逐条落进了文档，而不是写了一堆通用模板话。
     missing = []
@@ -416,7 +416,7 @@ def self_test() -> int:
         expect("干净演示树", lambda r: tree(r, clean, ["demand-list"]),
                set(), want_clean=True)
 
-        # 2) PM 词藏在 HTML 注释里——jf-hifi 原脚本先剥注释，这条会漏
+        # 2) PM 词藏在 HTML 注释里——合并前的原脚本先剥注释，这条会漏
         dirty = os.path.join(td, "dirty")
         _write(dirty, {"prototypes/console.html": _CLEAN_CONSOLE,
                        "prototypes/pages/demand-list.html":

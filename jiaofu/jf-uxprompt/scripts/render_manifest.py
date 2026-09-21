@@ -1319,7 +1319,7 @@ def render_console(manifest: dict, by_id: dict, css_rel: str, root: str,
     （render_index 的设计基线链接就栽在这上面）。
 
     manifest 未声明 scenes[] 时退化为「模块 → 页面清单」（加强版索引）并报 WARN
-    ——与套件「未安装即降级」的既有约定一致。
+    ——与套件「没配执行者就走内置路径」的既有约定一致。
     """
     product = manifest.get("product", {})
     scenes = manifest.get("scenes") or []

@@ -5,16 +5,14 @@ description: 交付·IA——从PRD推导页面骨架和导航体系。触发：
 
 # 页面架构
 
-从②PRD的功能需求和验收标准推导页面骨架：先梳理业务对象层级(BO)，再推导需要哪些页面(PS)、每种布局类型(LT)、页面间怎么跳转(NM)、功能怎么组织(FA)。5个内容块串行推进，全agent推导+人确认。推导顺序：**领域 → 业务对象层级 → 页面**（页面是业务对象的投影）。页面归属与呈现框架由 IA 定义，⑥生成按此渲染。
+从②PRD的功能需求和验收标准推导页面骨架：先梳理业务对象层级(BO)，再推导需要哪些页面(PS)、每种布局类型(LT)、页面间怎么跳转(NM)、功能怎么组织(FA)。5个内容块串行推进，全agent推导+人确认。推导顺序：**领域 → 业务对象层级 → 页面**（页面是业务对象的投影）。页面归属与呈现框架由 IA 定义，`jf-uxprompt` 渲染按此执行。
 
-本skill输出是⑤线框和⑦汇报的基础素材——NM是⑤PW交互标注的源头（单页投影）。
+本skill输出是线框（jf-wireframe）和③评审汇报的基础素材——NM 是线框 PW 交互标注的源头（单页投影）。
 
 ## 入口纪律
 
-**先走 jf-router 意图分类**：
-1. 用 `products/jf-router/SKILL.md` 判断用户意图落在高保真工作法哪一层
-2. 若目标 skill ≠ 本 skill → 终止本 skill 流程，输出路由结果并直接按目标 skill 执行
-3. 若目标 skill = 本 skill → 继续本 skill 流程
+**正常路径**：由 `jf-prd` 在第 3 步调用。
+**独立路径**：用户显式指名时可直接调用——此时先走 `jf-router` 判跨拍。
 
 **意图不清或方案不清晰时**：
 - 需求模糊、业务逻辑不清 → 调用 `grill-with-docs` 盘问梳理
@@ -53,9 +51,9 @@ FA 功能架构：从NM推导功能架构——三层视图（领域→业务对
 - **BO**：业务对象层级（领域映射+实体汇总+层级分图+流程主管理对象+CRUD矩阵）— IA 的第一块
 - **PS**：页面清单（中文名/英文名/路由/HTML文件名），含每个页面承载的FR + **导航归属** + **主管理对象** + **CRUD** 字段 → **同步输出 `manifest.json` 的 `modules[]` + `pages[]`**
 - **LT**：布局类型定义+每页分配哪种布局 + **页面框架**（route全幅页 / modal弹窗+hostPageId）→ 落 `pages[].frame`
-- **NM**：导航地图表（全局，全站页面间跳转关系）+ 页面从属关系 + 节标题对象CRUD主线 — 是⑤PW交互标注的源头 → **同步输出 `manifest.json` 的 `relations[]`**
+- **NM**：导航地图表（全局，全站页面间跳转关系）+ 页面从属关系 + 节标题对象CRUD主线 — 是线框（jf-wireframe）PW 交互标注的源头 → **同步输出 `manifest.json` 的 `relations[]`**
 - **FA**：功能架构图（领域→业务对象→功能模块三层视图+角色归属）— 原「子系统→模块」二层的按负责人罗列视图降为历史留存
-- **manifest.json**：**本 skill 的机器可读产物**，是下游⑤线框/⑥生成的唯一输入。字段定义见 `products/jf-contract/references/manifest-schema.md`
+- **manifest.json**：**本 skill 的机器可读产物**，是下游线框（jf-wireframe）/原型渲染（jf-uxprompt）的唯一输入。字段定义见 `products/jiaofu/jf-contract/references/manifest-schema.md`
 
 ## 产物契约：manifest.json（PS/NM 双门禁）
 
@@ -86,7 +84,7 @@ PS 表定稿时，同一轮必须产出 manifest 的 `modules[]` 与 `pages[]`�
 NM 表定稿时，同一轮必须产出 `relations[]`，并**跑通校验**：
 
 ```bash
-python3 products/jf-validate/scripts/validate_manifest.py manifest.json
+python3 products/jiaofu/jf-validate/scripts/validate_manifest.py manifest.json
 ```
 
 字段映射：
@@ -100,7 +98,7 @@ python3 products/jf-validate/scripts/validate_manifest.py manifest.json
 | 触发条件 | `condition` |
 | 节标题对象CRUD主线 | `semantic`：`drill`（下钻）/`back`（返回）/`activate`（激活子流程）/`rel`（相关） |
 
-**校验不通过 = 本块未完成**，禁止进入 FA 与⑤线框。常见打回原因：id 与文件名不符、
+**校验不通过 = 本块未完成**，禁止进入 FA 与线框。常见打回原因：id 与文件名不符、
 关系指向不存在页面、sub-flow 缺宿主页、modal 的宿主不是源页、crud 含 D 没写替代动作。
 
 ### 为什么必须双写
@@ -112,12 +110,12 @@ manifest 是**真相源**，文档表由它派生——两边冲突时以 manife
 
 - **全串行**：BO→PS→LT→NM→FA，上游不就绪不下游
 - **BO是源头**：BO 梳理业务对象层级，页面挂在对象下；同域页面共享聚合根，导航分组与对象层级一致
-- **NM是源头**：NM定义全站跳转关系，⑤PW消费NM做**单页投影**——NM是全局表，PW是抽取本页跳转的内联标注（导航去哪/字段约束/状态触发）。不重复定义
+- **NM是源头**：NM定义全站跳转关系，线框 PW 消费NM做**单页投影**——NM是全局表，PW是抽取本页跳转的内联标注（导航去哪/字段约束/状态触发）。不重复定义
 - **LT与NM一致**：LT的框架分配与NM的类型列必须一致——类型列=route的页→全幅页；=modal的→弹窗挂宿主页内。不一致评审即判为缺陷
 - **从属关系双向可查**：子流程页行标宿主页（←宿主 XX），宿主页行标可激活的子流程页（→P11 子流程页），两处互相对得上
 - **CRUD 默认口径**：业务系统无物理删除——D 一律写业务替代动作（停用/退回/覆盖导入）
 - **agent推导+人确认**：五块都是mapping型，agent从源码推，人确认
-- **manifest 同步输出**：PS 出 `modules[]+pages[]`、NM 出 `relations[]`，两次门禁都要跑 `jf-validate`；契约字段见 `products/jf-contract/references/manifest-schema.md`
+- **manifest 同步输出**：PS 出 `modules[]+pages[]`、NM 出 `relations[]`，两次门禁都要跑 `jf-validate`；契约字段见 `products/jiaofu/jf-contract/references/manifest-schema.md`
 - **manifest 是真相源**：与文档表冲突时以 manifest 为准，文档表由它派生
 
 ## BO 业务对象层级（第一块）
@@ -159,14 +157,14 @@ manifest 是**真相源**，文档表由它派生——两边冲突时以 manife
 - 单独列清，不埋在正文：领域锚点、共享对象升级、同名区分等
 - 业务方拍板后方法论才生效（2026-08-21 用户拍板：四项待确认全部同意）
 
-### ⑥生成侧引用（LF 呈现对象层级）
+### 原型渲染侧引用（LF 呈现对象层级）
 
 - LF 侧边栏导航分组与 BO 聚合根对齐（模块 = 领域切片，组内页面共享聚合根）
 - 页面 meta 行加「主管理对象」：PAGES 每页新增 `obj` 字段（主管理对象＋CRUD 定位，取自 BO 第5步/PS CRUD 列），meta 行渲染为「对象：XX｜R（…）」插在路由前
 
 ## 页面归属与呈现框架
 
-页面分两类归属、两种框架，由 IA 统一定义，⑥生成按此渲染，评审按此核对。
+页面分两类归属、两种框架，由 IA 统一定义，`jf-uxprompt` 渲染按此执行，评审按此核对。
 
 ### 导航归属（PS 必标）
 
@@ -221,7 +219,7 @@ NM 每页新增「从属关系」标注，双向对齐：
 - 跳转主线 = 同一业务对象的 CRUD 链（创建→列表→详情→编辑/复核，沿对象生命周期串起来）
 - 跨对象跳转仅驾驶舱下钻（其他一律不跳对象）
 
-### ⑥生成渲染规则（LF，评审对照）
+### 原型渲染规则（LF，评审对照）
 
 - **侧边栏只列导航页**：子流程页彻底不进左侧导航，宿主页下不挂「⤷」特殊条目
 - **页面下部「从属与跳转」区**：集中列全与当前页相关的所有页面与跳转方式，分四类：
@@ -237,22 +235,22 @@ NM 每页新增「从属关系」标注，双向对齐：
 本 skill 通用，不绑特定项目。以下可按项目调整：
 
 - **目录路径**：产物的存放位置由使用者项目结构决定（推荐默认见各块说明）
-- **执行外包**：本步骤的执行可由外部 skill 完成（BMAD/Matt Pocock/Superpowers/自定义）。jf-* 只管编排和门禁——只要产出过门禁，谁做的无所谓。未外包时本 skill 自行执行。
+- **执行外包**：本步骤（中央表 **S1**，IA 四块 PS→LT→NM→FA）的执行可由外部 skill 完成。jf-* 只管编排和门禁——只要产出过门禁，谁做的无所谓。未外包时本 skill 自行执行。
   - **外包不改变契约**：外部 skill 产出 IA 时，同样必须交出 `manifest.json` 并通过 `jf-validate`；只交文档表视为未完成
-  - 可选外部执行者：`ux-strategy:information-architecture`、`card-sorting`（Owl-Listener/designer-skills）
+  - 候选与安装命令见中央登记表 `jf-contract/references/external-skills.md`（S1：`impeccable` / `ux-strategy:information-architecture` / `design-research:card-sort-analysis`）
 - **推荐默认**：输出格式和载体默认可改——见各块最佳形态说明
 
 ## 产物自检（收尾必跑）
 
 ```bash
 # 1. 校验契约（PS/NM 定稿后各跑一次）
-python3 products/jf-validate/scripts/validate_manifest.py manifest.json
+python3 products/jiaofu/jf-validate/scripts/validate_manifest.py manifest.json
 
 # 2. 渲染出原型，确认每页可打开、跳转可点通
-python3 products/jf-uxprompt/scripts/render_manifest.py manifest.json
+python3 products/jiaofu/jf-uxprompt/scripts/render_manifest.py manifest.json
 
 # 3. 渲染后严格校验（含文件存在性与跳转链接一致性）
-python3 products/jf-validate/scripts/validate_manifest.py manifest.json --strict
+python3 products/jiaofu/jf-validate/scripts/validate_manifest.py manifest.json --strict
 ```
 
 可对照样例：`tests/fixtures/jf-contract/manifest.valid.json`（5 页，含 1 个 sub-flow、1 个 modal）。

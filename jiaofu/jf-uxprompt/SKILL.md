@@ -5,21 +5,21 @@ description: 交付·原型渲染——先读 manifest.json，再出多页可跳
 
 # 原型渲染
 
-**先读 manifest，再渲染**。输入是 ③`jf-ia` 产出的 `manifest.json`——页面清单、
+**先读 manifest，再渲染**。输入是 `jf-ia` 产出的 `manifest.json`——页面清单、
 导航与框架、跳转关系、状态、标注全在里面（契约见 `jf-contract`）。本步只做
 一件事：把 manifest 变成**能点通的多页 HTML**。
 
 不从 PRD 或线框倒推页面集合：页面该不该存在、属于哪个模块、standalone 还是
-sub-flow、route 还是 modal，都是 ③IA 定下写进 manifest 的。渲染不增页、不减页。
+sub-flow、route 还是 modal，都是 IA（`jf-ia`）定下写进 manifest 的。渲染不增页、不减页。
 
 ```
-① 读 manifest.json（唯一真相源）
+1. 读 manifest.json（唯一真相源）
     ↓
-② 选执行者 —— 外部执行者装了就用它，一个没装就用内置渲染器（降级，不阻塞）
+2. 选执行者 —— 配了哪个外部执行者就用它（它成为这一步的**前置要求**，失败即硬失败）；一个都没配才走内置渲染器
     ↓
-③ 渲染 —— 按 pages[].file 逐页落盘
+3. 渲染 —— 按 pages[].file 逐页落盘
     ↓
-④ 过门禁 —— jf-validate --strict + 链接可达性检查；不过就打回重做
+4. 过门禁 —— jf-validate --strict + 链接可达性检查；不过就打回重做
     （客户演示档 `--demo` 是另一棵树，门禁口径见「演示档过哪道门禁」）
 ```
 
@@ -29,13 +29,11 @@ sub-flow、route 还是 modal，都是 ③IA 定下写进 manifest 的。渲染�
 
 ## 入口纪律
 
-**先走 jf-router 意图分类**：
-1. 用 `products/jf-router/SKILL.md` 判断用户意图落在高保真工作法哪一层
-2. 若目标 skill ≠ 本 skill → 终止本 skill 流程，输出路由结果并直接按目标 skill 执行
-3. 若目标 skill = 本 skill → 继续本 skill 流程
+**正常路径**：由 `jf-prd` 在第 7 步调用。
+**独立路径**：用户显式指名时可直接调用——此时先走 `jf-router` 判跨拍。
 
-**manifest 不存在时**：本 skill 不自行推导页面集合——回 ③`jf-ia` 先出 manifest，
-或先跑 `jf-validate` 看缺哪些字段。
+**manifest 不存在时**：本 skill 不自行推导页面集合——回 `jf-ia` 先出 manifest
+（② 第 3 步），或先跑 `jf-validate` 看缺哪些字段。
 
 **意图不清或方案不清晰时**：
 - 需求模糊、业务逻辑不清 → 调用 `grill-with-docs` 盘问梳理
@@ -44,7 +42,7 @@ sub-flow、route 还是 modal，都是 ③IA 定下写进 manifest 的。渲染�
 
 ## 渲染规则（所有执行者共同遵守）
 
-页面归属（导航页/子流程页）与呈现框架（全幅/弹窗）由 ③IA 写入 manifest，
+页面归属（导航页/子流程页）与呈现框架（全幅/弹窗）由 IA（`jf-ia`）写入 manifest，
 渲染按此执行——导航树只列导航页，框架与从属关系在页面框架区与下部关系区呈现。
 
 ### 跳转协议
@@ -103,7 +101,7 @@ modal 在宿主页渲染为浮层（JS 未加载时退化为整页跳转）。
 
 ### 标注气泡（渲染侧）
 
-manifest 的 `annotations` 渲染成**编号徽标 + 气泡浮层**，供 ⑦评审 逐条过：
+manifest 的 `annotations` 渲染成**编号徽标 + 气泡浮层**，供 ③ 设计评审逐条过：
 
 - 徽标插在 target 命中元素的**开标签之后**（挂元素外面等于挂错控件）
 - 点徽标弹气泡（title + content + 状态 + target），Esc / 点遮罩关闭
@@ -123,7 +121,7 @@ manifest 的 `annotations` 渲染成**编号徽标 + 气泡浮层**，供 ⑦评
 | modal 浮层 | `modal-<pageId>` |
 
 权威版本（三态词表、气泡协议全文、F4 与 WARN 的分工）见
-`products/jf-contract/references/manifest-schema.md#annotations`。
+`products/jiaofu/jf-contract/references/manifest-schema.md#annotations`。
 
 ## 三条产出档位
 
@@ -157,13 +155,13 @@ manifest 的 `annotations` 渲染成**编号徽标 + 气泡浮层**，供 ⑦评
 # ⚠️ design 块按 root 解析——渲染进空目录会**静默**退回内置 tokens
 #    （丢掉产品自己的视觉基线），所以要么在项目目录里渲染，要么连同
 #    DESIGN.md / tokens.css 一起拷进目标目录
-python3 products/jf-uxprompt/scripts/render_manifest.py <项目>/manifest.json --demo
+python3 products/jiaofu/jf-uxprompt/scripts/render_manifest.py <项目>/manifest.json --demo
 ```
 
 场景来自 `manifest.scenes[]`（契约见 `jf-contract/references/manifest-schema.md#scenes`）：
 每条场景声明 `moduleId` / `title` / `source` / 可选 `flow`，步骤是 `{pageId, state, label}`。
 **manifest 没有 `scenes[]` 时**：console 退化为「模块 → 页面清单」（加强版索引）
-并向 stderr 报 WARN——与套件「未安装即降级」的既有约定一致，不是错误。
+并向 stderr 报 WARN——与套件「没配执行者就走内置路径」的既有约定一致，不是错误。
 
 ### `?state=` 传参约定
 
@@ -220,17 +218,17 @@ python3 products/jf-uxprompt/scripts/render_manifest.py <项目>/manifest.json -
 3. **场景必须有来源**：`scenes[].source` 指回 FR/AC/BR/SM/UC 编号或文档锚点，且
    `title` 是客户可读的业务语言（不含编号）。**无来源的界面内容不得入演示框架**——
    场景 ≠ 笛卡尔积，只演示业务上真实会发生的状态组合（I12 拦）。
-4. **正文文案是给客户读的，不是给开发读的**——三条文案纪律（源自 jf-hifi 的
-   `copy-and-states.md`，并入时逐条核对过）：
+4. **正文文案是给客户读的，不是给开发读的**——三条文案纪律（源自合并前的 jf-hifi
+   `copy-and-states.md`——该 skill 未发布、已并入本套件，并入时逐条核对过）：
    - **说人话**：不用「校验不通过」「数据未回流」这类实现语，用「请检查以下项」；
    - **可执行**：错误提示要给出**怎么改**，不是只报错；
    - **一致**：同一场景在列表、弹窗、提示处用同一句话。
 
    ⚠️ **这三条门禁不查**，A1–A6 只管「不许出现 PM 词」、管不了「文案写得好不好」
-   ——「说人话」判不了。归 ⑥ 的「文案完整」那一项人工过，⑦ 评审现场一眼可判。
+   ——「说人话」判不了。归本 skill 内部评审的「文案完整」那一项人工过，③ 设计评审现场一眼可判。
 
 分界线：**演示结构**（模块 / 场景 / 步骤 / 状态切换）在演示树里是允许的，那正是客户
-评审要看的「业务流程 → 状态」；**PM 注释**（设计依据与决策）分到产物 B——⑦`jf-review`
+评审要看的「业务流程 → 状态」；**PM 注释**（设计依据与决策）分到产物 B——③ 的 `jf-review`
 产出的设计注释文档，受众是 PM/内部，不是客户。
 
 ## 执行者
@@ -246,17 +244,17 @@ python3 products/jf-uxprompt/scripts/render_manifest.py <项目>/manifest.json -
 
 # 渲染（按 manifest 的 pages[].file 落盘，同时生成 shared/tokens.css、
 # shared/components.js 与 index.html）
-python3 products/jf-uxprompt/scripts/render_manifest.py <项目>/manifest.json
+python3 products/jiaofu/jf-uxprompt/scripts/render_manifest.py <项目>/manifest.json
 
 # 渲染后严格校验（文件存在性 + 跳转链接一致性 + 标注锚点 + status 词表）
-python3 products/jf-validate/scripts/validate_manifest.py <项目>/manifest.json --strict
+python3 products/jiaofu/jf-validate/scripts/validate_manifest.py <项目>/manifest.json --strict
 
 # 链接可达性（脱离渲染器直接打开 .html 也能跳）
 python3 tests/e2e/jf_contract_check.py <项目>/manifest.json
 
 # 客户演示档 / 演示树的链接可达性（--root 指到演示目录；validate 不适用于这棵树，
 # 见上面「演示档过哪道门禁」）
-python3 products/jf-uxprompt/scripts/render_manifest.py <项目>/manifest.json --demo
+python3 products/jiaofu/jf-uxprompt/scripts/render_manifest.py <项目>/manifest.json --demo
 python3 tests/e2e/jf_contract_check.py <项目>/manifest.json --root <演示目录>
 ```
 
@@ -285,16 +283,18 @@ python3 tests/e2e/jf_contract_check.py <项目>/manifest.json --root <演示目�
 ### 外部执行者（候选）
 
 装了就交给它，产出照样逐条过门禁。三行摘要（细则、安装命令、门禁细节见
-`references/external-skills.md`）：
+中央登记表 `jf-contract/references/external-skills.md`——本 skill 涉及 S5/S6/S7）：
 
 | 候选 | 输入 | 期望产出 | 门禁 | 不装时 |
 |---|---|---|---|---|
-| `interaction-prd` runtime | `manifest.json` | 可点击原型底座 + 客户标注气泡 | `validate_manifest.py --strict` + `jf_contract_check.py` | 内置渲染器顶 |
+| `interaction-prd` runtime | `manifest.json`（适配层转写） | 可点击原型底座 + 客户标注气泡 | `validate_manifest.py --strict` + `jf_contract_check.py` | 内置渲染器顶 |
 | `html-style-generator` | 元提示词（PC+PB + 写死 Token + CS/DD 引用） | 多页自包含 HTML | 同上 | 同上 |
 | `cc-designer` | `DESIGN.md` + `manifest.json` + 演示数据 | 自带完整视觉的多页 HTML | 同上 | 同上 |
 
-**未安装即降级是刻意约定，不是缺陷**——一个候选都没装时走内置渲染器，
-链路不阻塞（`--strict` 对降级只提示、不拦截）。
+**降级不是自动的，是你选出来的**：一个候选都没装 → 走内置渲染器，链路照跑；
+配了哪个，哪个就是这个外包点的**前置要求**——调用失败即**硬失败**，不降级、
+也不悄悄改走内置。后一条由编排层管（步骤表看见失败就停下）：`--strict` 量的是
+manifest 本身，它看不见你配没配执行者，所以这一条不归它判。
 
 ### 元提示词路径（生成式执行者的内部实现）
 
@@ -317,9 +317,9 @@ python3 tests/e2e/jf_contract_check.py <项目>/manifest.json --root <演示目�
     营销文案注入(引用CS块) + 演示数据加载(引用DD)
     → 完整准高保真
     ↓
- ⑥内部评审（视觉/文案/数据三项）
+ 本 skill 内部评审（视觉/文案/数据三项）
     ↓ 通过
- 交给⑦设计评审
+ 交给③设计评审
 ```
 
 内容块：
@@ -328,16 +328,16 @@ python3 tests/e2e/jf_contract_check.py <项目>/manifest.json --root <演示目�
 - **元提示词(PC+PB)**：每页一份，自包含。Token/视觉写死值，文案/数据引用独立块
 - **DD 演示数据集**：每状态一份JSON，准高保真加载
 - **LF 低保真产物**：从 manifest 直接产出，可跳转可切换状态
-- **CS 营销文案**：独立定义每页营销文案（中英文），元提示词引用，⑦抽文案确认表
-- **准高保真产物**：两步生成，⑥内部评审通过才给⑦
+- **CS 营销文案**：独立定义每页营销文案（中英文），元提示词引用，③ 抽文案确认表
+- **准高保真产物**：两步生成，内部评审通过才给③
 
 ## 纪律
 
-- **manifest 是唯一真相源**：渲染只解释它，不改它、不补页；发现 manifest 有问题回 ③
+- **manifest 是唯一真相源**：渲染只解释它，不改它、不补页；发现 manifest 有问题回 `jf-ia`
 - **执行者不豁免门禁**：外部执行者的产出与内置产出过同一套校验，不过就打回重做
 - **Token/视觉写死值**：从设计体系拷贝进元提示词，生成时不依赖设计体系
-- **⑥内部先评审**：视觉准确/文案完整/数据正确三项通过才给⑦
-- **结构文案归⑤**：⑥产营销文案，⑦只确认营销文案
+- **内部先评审**：视觉准确/文案完整/数据正确三项通过才给③
+- **结构文案归线框（jf-wireframe）**：本 skill 产营销文案，③ 只确认营销文案
 - **不假装落点**：标注落不到真实元素上就显式进「未落点」区 + 报 WARN
 - **场景必须有来源**：演示档的场景是业务上真实会发生的组合，`scenes[].source`
   指回上游编号（I12 拦）；不是「每页 × 每状态」的遍历
@@ -347,6 +347,7 @@ python3 tests/e2e/jf_contract_check.py <项目>/manifest.json --root <演示目�
 本 skill 通用，不绑特定项目。以下可按项目调整：
 
 - **目录路径**：产物的存放位置由使用者项目结构决定（由 `manifest.pages[].file` 定）
-- **执行外包**：本步骤的执行可由外部 skill 完成（BMAD/Matt Pocock/Superpowers/自定义）。
-  jf-* 只管编排和门禁——只要产出过门禁，谁做的无所谓。未外包时本 skill 自行执行。
+- **执行外包**：本步骤的执行可由外部 skill 完成。jf-* 只管编排和门禁——只要产出过门禁，
+  谁做的无所谓。未外包时本 skill 自行执行。候选与安装命令见中央登记表
+  `jf-contract/references/external-skills.md`（本 skill 涉及 S5/S6/S7，含标注气泡由谁出、演示档两条路）
 - **推荐默认**：输出格式和载体默认可改——见各块最佳形态说明
