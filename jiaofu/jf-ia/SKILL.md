@@ -246,11 +246,19 @@ NM 每页新增「从属关系」标注，双向对齐：
 # 1. 校验契约（PS/NM 定稿后各跑一次）
 python3 products/jiaofu/jf-validate/scripts/validate_manifest.py manifest.json
 
-# 2. 渲染出原型，确认每页可打开、跳转可点通
+# 2. shaping 待确认回查（项目有 shaping/ 时必跑；无则跳过）
+python3 products/jiaofu/jf-interview/scripts/check_shaping.py <shaping目录> --manifest manifest.json
+
+# 3. 渲染出原型，确认每页可打开、跳转可点通
 python3 products/jiaofu/jf-uxprompt/scripts/render_manifest.py manifest.json
 
-# 3. 渲染后严格校验（含文件存在性与跳转链接一致性）
+# 4. 渲染后严格校验（含文件存在性与跳转链接一致性）
 python3 products/jiaofu/jf-validate/scripts/validate_manifest.py manifest.json --strict
 ```
+
+第 2 步是 G5 的 ERROR 档：`shaping/07-open-questions.md` 每条待确认的「影响页面」
+必须落在 `manifest.pages[]` 里。jf-interview 首次跑门禁时 manifest 尚不存在、加不了
+`--manifest`——最强的交叉校验就在这里（manifest 首产时）接上。报错即**两头之一错了**：
+manifest 缺页就补页，07 的页面 id 写错就改 07，对齐后重跑；不通过不放行。
 
 可对照样例：`tests/fixtures/jf-contract/manifest.valid.json`（5 页，含 1 个 sub-flow、1 个 modal）。

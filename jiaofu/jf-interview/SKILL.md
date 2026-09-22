@@ -102,7 +102,7 @@ shaping/
 ```bash
 python3 products/jiaofu/jf-interview/scripts/check_shaping.py <shaping目录>        # 中文报告
 python3 products/jiaofu/jf-interview/scripts/check_shaping.py <shaping目录> --json # 机读（CI）
-python3 products/jiaofu/jf-interview/scripts/check_shaping.py <shaping目录> --manifest <manifest.json>  # G5 交叉校验页面 id（manifest 已存在时加：二次迭代，或 jf-ia 产出后回跑）
+python3 products/jiaofu/jf-interview/scripts/check_shaping.py <shaping目录> --manifest <manifest.json>  # G5 交叉校验页面 id（manifest 已存在时加：二次迭代重跑门禁，或首程由 jf-ia 产物自检触发）
 python3 products/jiaofu/jf-interview/scripts/check_shaping.py --self-test          # 脚本自检
 ```
 

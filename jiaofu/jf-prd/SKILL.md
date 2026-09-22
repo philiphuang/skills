@@ -30,7 +30,7 @@ description: 交付②·需求与设计——把已确认的业务事实做成�
 |---|---|---|---|---|---|
 | 1 收敛 `[待确认]` | `jf-interview` | MRD | `shaping/` 8 件套 + 待确认清单 | `check_shaping.py` G1–G7 | 硬失败 |
 | 2 需求规格 | `jf-prd-core` | MRD + shaping | FR / AC / API / RP / PP | 无（不外包） | — |
-| 3 信息架构 | `jf-ia` 〔+ `impeccable`〕 | 需求规格 + MRD | **`manifest.json`** + PS / LT / NM / FA | `validate_manifest.py --strict` | 硬失败 |
+| 3 信息架构 | `jf-ia` 〔+ `impeccable`〕 | 需求规格 + MRD | **`manifest.json`** + PS / LT / NM / FA | `validate_manifest.py --strict` ＋ shaping 回查（`check_shaping.py --manifest`，有 `shaping/` 时） | 硬失败 |
 | 4 数据模型 | `jf-data` | ①CP + BEN（**独立链**，绕开②） | DC / CDF / TFD | 无（不外包） | — |
 | 5 设计基线 | `jf-design` 〔+ `ui-ux-pro-max`〕 | `manifest.json` | `DESIGN.md` / `components-and-states.md` / `tokens.css` | `check_design.py` G1–G8 | 硬失败 |
 | 6 线框 | `jf-wireframe` 〔+ `impeccable`〕 | `manifest.json` + 设计基线 | EC / PW / SV / MS / DDR / GC / CSM | `validate_manifest.py`（manifest 侧） | 硬失败 |
