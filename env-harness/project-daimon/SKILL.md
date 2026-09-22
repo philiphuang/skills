@@ -78,8 +78,6 @@ AGENTS.md 工作原则？
 ```text
 通过 /skillshare 启用哪些 skill？（多选）
 ☐ ui-ux-pro-max
-☐ anthropic
-☐ notebooklm-skill
 ☐ 暂不配置
 
 启用哪些联网搜索 MCP？（多选，通过 mcp-bridge 渲染）
@@ -98,6 +96,7 @@ AI复利工程？
 ```
 
 > skillshare 控制 skill 是必装项（第三步 0.5 无条件安装），不占用选项；todo-workflow 由第三批「TODO 工作流」问题决定，也不在此问。
+> 曾有的 anthropic / notebooklm-skill 选项已删：两者不在中央池，两条安装链路（6.5 池软链、第 8 步 marketplace 整仓克隆）都装不出可用产物；将来入池后再加回。
 
 #### 第三批：工程化习惯（必选）
 
@@ -388,7 +387,7 @@ git commit -m "初始化项目脚手架
 **配置：**
 
 - MCP: deepwiki, notebooklm, exa
-- Skills: notebooklm-skill
+- Skills: 无特定 skill
 - 特点: 强大的文档检索和 AI 笔记能力；天然需要工作法治理（工作法/ 目录骨架对所有项目类型都建）
 
 ### 前端开发
@@ -408,7 +407,7 @@ git commit -m "初始化项目脚手架
 **配置：**
 
 - MCP: context7
-- Skills: anthropic
+- Skills: 无特定 skill
 - 特点: API 设计和架构支持
 
 ### 全栈开发
@@ -418,7 +417,7 @@ git commit -m "初始化项目脚手架
 **配置：**
 
 - MCP: deepwiki, context7
-- Skills: anthropic, ui-ux-pro-max
+- Skills: ui-ux-pro-max
 - 特点: 完整的全栈开发支持
 
 ### 通用项目

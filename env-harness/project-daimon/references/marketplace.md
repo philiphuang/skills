@@ -19,10 +19,8 @@
 | 插件名称 | 适用的项目类型 | 说明 |
 |:-------|:-------------|:-----|
 | ui-ux-pro-max | frontend, fullstack | UI/UX 设计专家 [依赖: context7] |
-| anthropic | backend, fullstack | Anthropic 官方 skills 集合 |
 | prompt-optimizer | generic | Prompt 工程专家，57 种验证框架 |
 | sync-skills | generic | 自动同步 skills 到多工具目录 |
-| notebooklm-skill | research | NotebookLM 集成 |
 
 ### OpenCode Plugins
 
@@ -37,22 +35,13 @@
 
 ## Claude Code Skills
 
-### claude:research
-
-- `notebooklm-skill: NotebookLM 集成，用于文档分析和笔记管理 [依赖: notebooklm] [https://github.com/PleasePrompto/notebooklm-skill]`
-
 ### claude:frontend
 
 - `ui-ux-pro-max: UI/UX 设计专家，提供设计和组件开发支持 [依赖: context7] [https://github.com/nextlevelbuilder/ui-ux-pro-max-skill]`
 
-### claude:backend
-
-- `anthropic: Anthropic 官方 skills 集合 [无强制依赖] [https://github.com/anthropics/skills]`
-
 ### claude:fullstack
 
 - `ui-ux-pro-max: UI/UX 设计专家 [依赖: context7] [https://github.com/nextlevelbuilder/ui-ux-pro-max-skill]`
-- `anthropic: Anthropic 官方 skills [无强制依赖] [https://github.com/anthropics/skills]`
 
 ### claude:generic
 

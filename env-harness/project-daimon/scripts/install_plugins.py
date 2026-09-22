@@ -111,7 +111,7 @@ def install_claude_skill(project_path: Path, skill_name: str, description: str, 
 
     if github_url:
         # Extract repo name from URL for directory name
-        # e.g., https://github.com/PleasePrompto/notebooklm-skill -> notebooklm-skill
+        # e.g., https://github.com/nextlevelbuilder/ui-ux-pro-max-skill -> ui-ux-pro-max-skill
         repo_name = github_url.rstrip('/').split('/')[-1]
         dest_dir = skills_dir / repo_name
 
@@ -168,56 +168,6 @@ def install_opencode_plugin(project_path: Path, plugin_name: str, description: s
         }, indent=2))
         print(f"  📦 Created placeholder: {plugin_file}")
 
-def install_dependencies(skills_dir: Path):
-    """Install Python dependencies for skills that require them."""
-    # Check for skills with requirements.txt or setup.py
-    for skill_dir in skills_dir.iterdir():
-        if not skill_dir.is_dir():
-            continue
-
-        # Check for notebooklm-skill specific setup
-        if (skill_dir / "scripts" / "ask_question.py").exists():
-            # Check if already set up (has .venv)
-            venv_dir = skill_dir / ".venv"
-            if venv_dir.exists():
-                # Already set up, skip
-                continue
-
-            print(f"\n🔧 Setting up {skill_dir.name}...")
-
-            # Create .venv directory
-            if not venv_dir.exists():
-                print(f"  📦 Creating virtual environment...")
-                success, _, _ = run_command(f"python -m venv {venv_dir}")
-                if success:
-                    print(f"  ✅ Virtual environment created")
-                else:
-                    print(f"  ⚠️  Failed to create virtual environment")
-                    continue
-
-            # Install dependencies if requirements.txt exists
-            requirements_file = skill_dir / "requirements.txt"
-            if requirements_file.exists():
-                # Determine pip path based on OS
-                import platform
-                if platform.system() == "Windows":
-                    pip_path = venv_dir / "Scripts" / "pip"
-                else:
-                    pip_path = venv_dir / "bin" / "pip"
-
-                print(f"  📦 Installing dependencies...")
-                success, _, _ = run_command(f"{pip_path} install -r {requirements_file}")
-                if success:
-                    print(f"  ✅ Dependencies installed")
-                else:
-                    print(f"  ⚠️  Failed to install dependencies")
-
-            # Create data directory
-            data_dir = skill_dir / "data"
-            data_dir.mkdir(exist_ok=True)
-            (data_dir / "library.json").write_text("[]")
-            (data_dir / "auth_info.json").write_text("{}")
-
 def main():
     if len(sys.argv) < 4:
         print("Usage: install_plugins.py <project-root> <tool-type> <project-type>")
@@ -249,12 +199,6 @@ def main():
             install_claude_skill(project_root, plugin_name, description, github_url)
         elif tool_type == "opencode":
             install_opencode_plugin(project_root, plugin_name, description, github_url)
-
-    # Install dependencies for skills that need them
-    if tool_type == "claude":
-        skills_dir = project_root / ".claude" / "skills"
-        if skills_dir.exists():
-            install_dependencies(skills_dir)
 
     print("\n✅ Plugin installation complete")
 

@@ -12,7 +12,7 @@ PROJECT_TEMPLATES = {
     "research": {
         "description": "方案研究 - 文档研究和资料收集",
         "mcp_servers": ["deepwiki", "notebooklm", "exa"],
-        "claude_skills": ["notebooklm-skill"],
+        "claude_skills": [],
         "opencode_plugins": []
     },
     "frontend": {
@@ -24,13 +24,13 @@ PROJECT_TEMPLATES = {
     "backend": {
         "description": "后端开发 - Node.js/Python/Go",
         "mcp_servers": ["context7"],
-        "claude_skills": ["anthropic"],
+        "claude_skills": [],
         "opencode_plugins": []
     },
     "fullstack": {
         "description": "全栈开发 - 完整应用",
         "mcp_servers": ["deepwiki", "context7"],
-        "claude_skills": ["anthropic", "ui-ux-pro-max"],
+        "claude_skills": ["ui-ux-pro-max"],
         "opencode_plugins": ["@opencode/typescript", "@opencode/eslint"]
     },
     "generic": {

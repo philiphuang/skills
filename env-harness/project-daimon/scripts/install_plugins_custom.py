@@ -12,9 +12,7 @@ from typing import List, Tuple
 
 # Skill/Plugin 仓库映射
 SKILL_REPOS = {
-    "ui-ux-pro-max": "https://github.com/nextlevelbuilder/ui-ux-pro-max-skill",
-    "anthropic": "https://github.com/anthropics/skills",
-    "notebooklm-skill": "https://github.com/PleasePrompto/notebooklm-skill"
+    "ui-ux-pro-max": "https://github.com/nextlevelbuilder/ui-ux-pro-max-skill"
 }
 
 PLUGIN_REPOS = {
