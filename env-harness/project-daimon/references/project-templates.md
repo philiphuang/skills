@@ -25,7 +25,7 @@
 **配置：**
 
 - MCP 服务器: deepwiki, notebooklm, exa
-- Claude Skills: notebooklm-skill
+- Claude Skills: 无特定 skill
 - OpenCode Plugins: 无
 
 **特点：** 强大的文档检索和 AI 笔记能力
@@ -53,7 +53,7 @@
 **配置：**
 
 - MCP 服务器: context7
-- Claude Skills: anthropic
+- Claude Skills: 无特定 skill
 - OpenCode Plugins: 根据语言类型选择
 
 **特点：** API 设计和架构支持
@@ -67,7 +67,7 @@
 **配置：**
 
 - MCP 服务器: deepwiki, context7
-- Claude Skills: anthropic, ui-ux-pro-max
+- Claude Skills: ui-ux-pro-max
 - OpenCode Plugins: @opencode/typescript, @opencode/eslint
 
 **特点：** 完整的全栈开发支持

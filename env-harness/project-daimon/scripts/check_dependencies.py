@@ -81,9 +81,7 @@ class DependencyChecker:
     }
 
     SKILL_DEPENDENCIES = {
-        "notebooklm-skill": ["python"],
-        "ui-ux-pro-max": [],
-        "anthropic": []
+        "ui-ux-pro-max": []
     }
 
     def __init__(self, mcp_servers: List[str] = None, skills: List[str] = None):

@@ -14,16 +14,6 @@ SKILL_DEPENDENCIES = {
         "required_mcp": ["context7"],
         "optional_mcp": [],
         "description": "需要 context7 查询 UI/UX 库文档"
-    },
-    "notebooklm-skill": {
-        "required_mcp": ["notebooklm"],
-        "optional_mcp": ["deepwiki"],
-        "description": "需要 notebooklm MCP 服务器"
-    },
-    "anthropic": {
-        "required_mcp": [],
-        "optional_mcp": ["context7", "deepwiki"],
-        "description": "可选增强功能"
     }
 }
 
