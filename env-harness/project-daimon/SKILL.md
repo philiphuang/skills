@@ -43,11 +43,13 @@ scripts/merge_scaffold_config.sh <project-root>
 scripts/cleanup_scaffold.sh <project-root>
 ```
 
-### 第二步：一次性询问配置
+### 第二步：分批询问配置
 
-使用 `AskUserQuestion` 一次性询问所有配置选项。
+使用 `AskUserQuestion` 分三批询问全部配置选项。
 
-#### 一次性询问（必选）
+> **工具硬限制**：一次调用最多 **4 个问题**、每问最多 **4 个选项**（"其他"由工具自动附加，不计入）。超出会被参数校验直接拒绝——历史上把 9 问塞进一次调用导致初始化中断。选项含义不变，只重新分批；每批答完再问下一批。
+
+#### 第一批：环境与项目（必选）
 
 ```text
 请选择 Agent 运行环境（可多选，至少选一项）：
@@ -59,32 +61,47 @@ AGENTS.md 工作原则？
 ○ 是 - 卡帕西原则（Spec→Verifier→Agent）+ skill 安装原则
 ○ 否
 
-通过 /skillshare 启用哪些 skill？
-☐ skillshare（控制类，默认选中）
-☐ ui-ux-pro-max
-☐ anthropic
-☐ todo-workflow
-☐ notebooklm-skill
-☐ 暂不配置
-
-启用哪些搜索 MCP？（通过 mcp-bridge 渲染）
-☐ tavily
-☐ anysearch
-☐ exa
-☐ deepwiki
-☐ 暂不配置
-
 请选择项目类型：
 ○ 方案研究 - 文档研究和资料收集
+○ 开发项目 - 需进一步选开发形态（见下一问）
+○ 通用项目 - 不限类型
+
+开发形态（上一问选「开发项目」才生效，其余情况忽略）：
 ○ 前端开发 - React/Vue/Next.js
 ○ 后端开发 - Node.js/Python/Go
 ○ 全栈开发 - 完整应用
-○ 通用项目 - 不限类型
+○ 暂不细分 - 按通用项目处理
+```
+
+#### 第二批：skill 与 MCP（必选）
+
+```text
+通过 /skillshare 启用哪些 skill？（多选）
+☐ ui-ux-pro-max
+☐ anthropic
+☐ notebooklm-skill
+☐ 暂不配置
+
+启用哪些联网搜索 MCP？（多选，通过 mcp-bridge 渲染）
+☐ tavily
+☐ anysearch
+☐ exa
+☐ 暂不配置
+
+启用 deepwiki 文档问答 MCP？
+○ 启用
+○ 不启用
 
 AI复利工程？
 ○ 是 - 包含 TODO.md（任务记录）、经验.md（经验复用）
 ○ 否
+```
 
+> skillshare 控制 skill 是必装项（第三步 0.5 无条件安装），不占用选项；todo-workflow 由第三批「TODO 工作流」问题决定，也不在此问。
+
+#### 第三批：工程化习惯（必选）
+
+```text
 Markdown美化工具？
 ○ 是 - 包含 Markdown lint（文档格式修复）、VSCode 扩展推荐
 ○ 否
@@ -97,6 +114,8 @@ TODO 工作流？
 ○ 是 - 安装 todo-workflow Skill 和 TODO.md 模板
 ○ 否
 ```
+
+> 「项目类型 + 开发形态」映射到 `apply_project_template.py` 的参数：方案研究 → `research`；开发项目 + 前端 / 后端 / 全栈 → `frontend` / `backend` / `fullstack`；通用项目、暂不细分 → `generic`。
 
 ### 第三步：执行初始化
 
