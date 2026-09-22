@@ -85,13 +85,13 @@ npx skills add larksuite/cli -s lark-doc -s lark-wiki -s lark-drive -s lark-shar
 
 ```bash
 # 全部单元测试
-python3 -m pytest products/md2feishu/tests/
+python3 -m pytest products/env-harness/md2feishu/tests/
 
 # GH12 预处理单独验证
-python3 -m pytest products/md2feishu/tests/test_preprocess.py -v
+python3 -m pytest products/env-harness/md2feishu/tests/test_preprocess.py -v
 
 # 批注落点匹配单独验证
-python3 -m pytest products/md2feishu/tests/test_match_comments.py -v
+python3 -m pytest products/env-harness/md2feishu/tests/test_match_comments.py -v
 ```
 
 ## 参考
