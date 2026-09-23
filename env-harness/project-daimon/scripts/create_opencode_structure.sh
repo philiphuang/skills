@@ -23,12 +23,10 @@ else
 		cp "$TEMPLATE" "$PROJECT_ROOT/opencode.json"
 		echo "✅ opencode.json created from template"
 	else
-		# Fallback: minimal opencode.json
+		# Fallback: minimal opencode.json（根级 env 违反 Schema，不得出现 —— #16）
 		cat >"$PROJECT_ROOT/opencode.json" <<'EOF'
 {
-  "env": {
-    "LANGUAGE": "zh-CN"
-  },
+  "$schema": "https://opencode.ai/config.json",
   "mcp": {}
 }
 EOF

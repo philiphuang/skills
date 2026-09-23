@@ -135,13 +135,7 @@ try:
     with open("$opencode_dst") as f:
         dst_config = json.load(f)
 
-    # Deep merge env
-    if "env" in src_config:
-        if "env" not in dst_config:
-            dst_config["env"] = {}
-        dst_config["env"].update(src_config["env"])
-
-    # Deep merge mcp
+    # Deep merge mcp（模板已无根级 env；根级 env 违反 OpenCode Schema，不再合并 —— #16）
     if "mcp" in src_config:
         if "mcp" not in dst_config:
             dst_config["mcp"] = {}
