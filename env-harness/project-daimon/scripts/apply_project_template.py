@@ -6,6 +6,7 @@ Reads template from project-templates.md and configures MCP/skills accordingly.
 
 import sys
 import re
+import json
 from pathlib import Path
 
 PROJECT_TEMPLATES = {
@@ -47,8 +48,8 @@ def get_template(project_type: str):
 
 def main():
     if len(sys.argv) < 3:
-        print("Usage: apply_project_template.py <project-root> <project-type>")
-        print("  project-type: research | frontend | backend | fullstack | generic")
+        print("Usage: apply_project_template.py <project-root> <project-type>", file=sys.stderr)
+        print("  project-type: research | frontend | backend | fullstack | generic", file=sys.stderr)
         sys.exit(1)
 
     project_root = Path(sys.argv[1])
@@ -56,13 +57,12 @@ def main():
 
     template = get_template(project_type)
 
-    print(f"📋 Applying template: {template['description']}")
-    print(f"   MCP servers: {', '.join(template['mcp_servers'])}")
-    print(f"   Claude skills: {', '.join(template['claude_skills']) or 'None'}")
-    print(f"   OpenCode plugins: {', '.join(template['opencode_plugins']) or 'None'}")
+    # 日志一律走 stderr：stdout 只留 JSON，供 $(...) 捕获后直接 json.load（#15）
+    print(f"📋 Applying template: {template['description']}", file=sys.stderr)
+    print(f"   MCP servers: {', '.join(template['mcp_servers'])}", file=sys.stderr)
+    print(f"   Claude skills: {', '.join(template['claude_skills']) or 'None'}", file=sys.stderr)
+    print(f"   OpenCode plugins: {', '.join(template['opencode_plugins']) or 'None'}", file=sys.stderr)
 
-    # Return template info as JSON for other scripts to use
-    import json
     print(json.dumps(template, indent=2, ensure_ascii=False))
 
 if __name__ == "__main__":
