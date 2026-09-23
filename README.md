@@ -2,12 +2,11 @@
 
 个人公开 skill 仓——供 multica 等平台通过 GitHub URL 安装。
 
-开发地在私有仓 [skills-factory](https://github.com/philiphuang/skills-factory)，本仓为发布渠道；skill 更新从开发地同步。
+本仓为发布渠道，skill 由开发地同步更新。
 
 ## 目录结构
 
 ```
-skill-publisher/  本仓管理工具（顶层）——发布/安装一体化
 jiaofu/           交付套件（jf-*）——「高保真工作法」四层工作流
 env-harness/           环境工具类——文档收发、IM 采集、飞书同步、项目脚手架等
 ```
@@ -19,22 +18,11 @@ env-harness/           环境工具类——文档收发、IM 采集、飞书同
 ```bash
 skillshare install philiphuang/skills/jiaofu/jf-prd -p
 skillshare install philiphuang/skills/env-harness/docness -p
-skillshare install philiphuang/skills/skill-publisher -p
 ```
 
 `-p` 为项目模式，装到当前项目的 `.claude/skills/`。
 
 ## 技能清单
-
-### 顶层 — 本仓管理
-
-管理本仓自身的工具，直属发布仓根目录，不归任何工具分组。
-
-| 目录 | 说明 |
-|------|------|
-| `skill-publisher/` | Skill Factory 发布/安装一体化工具——`/publish` 覆盖「products/ → 本仓 → GitHub」与「GitHub → skillshare → 目标项目」两条流程 |
-
-安装地址：`https://github.com/philiphuang/skills/tree/main/skill-publisher`
 
 ### jiaofu/ — 交付套件
 
