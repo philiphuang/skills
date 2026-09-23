@@ -310,10 +310,12 @@ print(','.join(sorted(user | template)))
 
 > 合并后的 `MERGED_MCPS` 和 `MERGED_SKILLS` 传递给后续步驟 6.5 和 7。
 
-> **Kimi 路径注意**：`setup_skillshare.py` 默认 Kimi 路径为
-> `~/Library/Application Support/kimi-desktop/daimon-share/daimon/skills`
-> （旧版为 `.../Kimi/...`，已更新为与 skillshare 安装一致的 `kimi-desktop`）；
-> 使用旧 Kimi 客户端或自定义路径时用 `--kimi-path` 覆盖。
+> **Kimi 路径注意**：Kimi Desktop 默认路径由 `scripts/kimi_paths.py` 按平台
+> 映射（唯一权威定义，`setup_skillshare.py` 与 `mcp-bridge.py` 共用）：
+> macOS `~/Library/Application Support/kimi-desktop`（实测）、
+> Windows `%APPDATA%\kimi-desktop`（官方论坛 Windows 用户目录实列）、
+> Linux `~/.local/share/kimi-desktop`（XDG 惯例，Kimi 无官方 Linux 版，
+> 未实测）。自定义路径一律用 `--kimi-path` 覆盖。
 
 #### 6.5. 通过 skillshare 安装 Skills（可选）
 

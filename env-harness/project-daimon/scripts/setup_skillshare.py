@@ -22,6 +22,8 @@ import subprocess
 import argparse
 from pathlib import Path
 
+from kimi_paths import skills_dir as kimi_skills_dir
+
 # ---------------------------------------------------------------------------
 # Agent environment → target mapping
 # ---------------------------------------------------------------------------
@@ -44,7 +46,9 @@ TARGET_MAP = {
     },
 }
 
-DEFAULT_KIMI_PATH = "~/Library/Application Support/kimi-desktop/daimon-share/daimon/skills"
+# 平台映射的唯一权威定义在 kimi_paths.py（macOS/Windows/Linux，#5）；
+# 此处只取当前平台的默认值，用户可用 --kimi-path 覆盖。
+DEFAULT_KIMI_PATH = str(kimi_skills_dir())
 
 
 def parse_args():
