@@ -31,14 +31,13 @@ try:
 except ImportError:
     sys.exit("需要 PyYAML: pip install pyyaml")
 
+from kimi_paths import runtime_home
+
 DEFAULT_SOURCE = ".skillshare/mcp-bridge/servers.yaml"
 
-# 各 agent 的配置路径
+# 各 agent 的配置路径（Kimi 沙箱按平台映射，唯一权威定义见 kimi_paths.py，#5）
 ZCODE_MCP = Path.home() / ".claude.json"
-KIMI_DESKTOP_SANDBOX = (
-    Path.home() / "Library/Application Support/kimi-desktop"
-    / "daimon-share/daimon/runtime/kimi-code/home"
-)
+KIMI_DESKTOP_SANDBOX = runtime_home()
 
 
 # ── 源读写 ────────────────────────────────────────────────────────────────
