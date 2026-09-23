@@ -7,26 +7,28 @@
       "enabled": true
     },
     "context7": {
-      "command": "npx",
-      "args": ["-y", "@context7/mcp-server"],
-      "env": {
-        "CONTEXT7_API_KEY": "$CONTEXT7_API_KEY"
-      }
+      "type": "local",
+      "command": ["npx", "-y", "@context7/mcp-server"],
+      "environment": {
+        "CONTEXT7_API_KEY": "{env:CONTEXT7_API_KEY}"
+      },
+      "enabled": true
     },
     "notebooklm": {
-      "command": "npx",
-      "args": ["-y", "@notebooklm/mcp-server"],
-      "env": {
-        "GOOGLE_API_KEY": "$GOOGLE_API_KEY",
-        "GOOGLE_CLOUD_PROJECT": "$GOOGLE_CLOUD_PROJECT"
-      }
+      "type": "remote",
+      "url": "https://notebooklm.googleapis.com/v1/mcp",
+      "headers": {
+        "Authorization": "Bearer {env:GOOGLE_API_KEY}"
+      },
+      "enabled": true
     },
     "exa": {
-      "command": "npx",
-      "args": ["-y", "exa-mcp-server"],
-      "env": {
-        "EXA_API_KEY": "$EXA_API_KEY"
-      }
+      "type": "local",
+      "command": ["npx", "-y", "exa-mcp-server"],
+      "environment": {
+        "EXA_API_KEY": "{env:EXA_API_KEY}"
+      },
+      "enabled": true
     }
   }
 }
