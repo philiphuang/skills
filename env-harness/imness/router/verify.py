@@ -9,7 +9,7 @@ import json
 import re
 from pathlib import Path
 
-from .context_loader import root
+from .context_loader import root, kb_root
 from ._shared import parse_fm
 
 
@@ -59,9 +59,9 @@ def verify_pending_file(path: Path) -> list[str]:
 
 
 def verify_config() -> list[str]:
-    p = root() / "knowledge" / "mywork.config.md"
+    p = kb_root() / "mywork.config.md"
     if not p.exists():
-        return ["knowledge/mywork.config.md 不存在"]
+        return ["mywork.config.md 不存在"]
     issues: list[str] = []
     text = p.read_text()
     if "## 群组重要性" not in text:
@@ -76,7 +76,7 @@ def verify_config() -> list[str]:
 
 
 def verify_pending_batch() -> tuple[list[dict], list[str]]:
-    pd = root() / "knowledge" / "pending-docs"
+    pd = kb_root() / "pending-docs"
     if not pd.exists():
         return [], []
     valid: list[dict] = []
@@ -106,7 +106,7 @@ def main() -> None:
     if args.cmd == "config":
         issues = verify_config()
         if issues: [print(f"❌ {i}") for i in issues]
-        else: print("✅ knowledge/mywork.config.md 格式正确")
+        else: print("✅ mywork.config.md 格式正确")
 
     elif args.cmd == "pending":
         valid, issues = verify_pending_batch()

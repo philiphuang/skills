@@ -6,6 +6,11 @@
 # 查看当前标签: lark-cli im +feed-group-list --format json
 # 查看标签下会话: lark-cli im +feed-group-list-item --feed-group-id <group_id> --page-all
 
+# 库根（其下挂 raw/ + wiki/）。四级解析：IMNESS_KB_ROOT env > 此声明 > 自动探测
+# （项目根存在 .wiki-schema.md + raw/ 即库根=项目根）> 项目根/knowledge（旧默认）。
+# 相对路径以项目根为基准；kb_root: . = 库根即项目根（单库结构）。不写走后两级。
+# kb_root: .
+
 channels:
   # === 飞书渠道 ===
   # 可配多个实例（同人多账号 / 不同人），每个实例独立 lark profile 认证隔离

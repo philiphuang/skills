@@ -4,7 +4,7 @@
   scan: 发现文档 → 过滤低重要性群 → 输出 AI prompt
   finalize: AI 响应 → 入待审池
 
-CLI: python3 products/imness/router/route.py scan|finalize|review
+CLI: python3 products/env-harness/imness/router/route.py scan|finalize|review
 """
 from .decision import Action, Decision, DocRef, DocType, RouteJudgment
 from .context_loader import group_important, full_config, root

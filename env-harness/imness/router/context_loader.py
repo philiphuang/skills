@@ -1,9 +1,13 @@
-"""读取 knowledge/mywork.config.md。向上查找 CLAUDE.md 定根目录。"""
-import os, re
+"""读取 {kb_root}/mywork.config.md。库根经 config.py kb_root() 唯一裁决。"""
+import os, re, sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
+import config as _imness_config
 
 
 def root() -> Path:
+    """工作根（向上找 CLAUDE.md/AGENTS.md）；SKILLS_FACTORY_ROOT env 可覆盖。"""
     env = os.environ.get("SKILLS_FACTORY_ROOT")
     if env:
         return Path(env)
@@ -15,7 +19,12 @@ def root() -> Path:
     raise RuntimeError("找不到项目根，请设 SKILLS_FACTORY_ROOT")
 
 
-_CONFIG_PATH = root() / "knowledge" / "mywork.config.md"
+# 库根裁决（config.py kb_root：env > config.yaml kb_root > 探测 > 旧默认）
+# config.kb_root() 返回 str（common.sh print 消费），router 侧统一包 Path
+def kb_root() -> Path:
+    return Path(_imness_config.kb_root())
+
+_CONFIG_PATH = kb_root() / "mywork.config.md"
 _GROUP_LINE = re.compile(r'^-\s*\*\*(.+?)\*\*\s*—\s*(high|low)\s*:\s*(.*)$')
 _cache: tuple | None = None
 

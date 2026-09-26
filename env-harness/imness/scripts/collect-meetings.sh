@@ -1,5 +1,5 @@
 #!/bin/bash
-# collect-meetings.sh — 飞书会议妙记采集 → knowledge/raw/meetings/
+# collect-meetings.sh — 飞书会议妙记采集 → {kb_root}/raw/meetings/
 #
 # 多实例 + 标签匹配发现（#25 落地，#22 决策）：
 #   遍历所有飞书实例 → 每个实例用「project_tags ∩ 会议记录标签」找会议发现群

@@ -1,5 +1,5 @@
 #!/bin/bash
-# collect-chats.sh — 飞书会话采集 → knowledge/raw/transcripts/（bold-speaker 格式，已打码）
+# collect-chats.sh — 飞书会话采集 → {kb_root}/raw/transcripts/（bold-speaker 格式，已打码）
 #
 # 多实例控制流（#25 落地，#22/#23/#24 决策）：
 #   遍历所有飞书实例 → 每个实例切对应 lark profile → 遍历该实例 project_tags

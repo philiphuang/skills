@@ -42,6 +42,42 @@ def _config_path():
                         'config.yaml')
 
 
+def project_root():
+    """项目根：默认 = imness/ 上级；IMNESS_PROJECT_ROOT env 可覆盖。
+
+    跨项目部署（代码在中央库 skills-src、数据在项目根）时，脚本物理位置
+    上溯得到的是中央库所在仓，必须用 env 指向真实项目根。
+    """
+    env = os.environ.get('IMNESS_PROJECT_ROOT')
+    if env:
+        return os.path.abspath(env)
+    return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def kb_root():
+    """库根（其下挂 raw/ + wiki/）的唯一裁决处。
+
+    优先级：IMNESS_KB_ROOT env > config.yaml kb_root > 自动探测 > 项目根/knowledge（旧默认）。
+    kb_root 声明为相对路径时以项目根为基准。除末尾旧默认外，代码任何地方
+    不得再出现 knowledge 路径字面量。与 common.sh resolve_kb_root() 同构。
+    """
+    env = os.environ.get('IMNESS_KB_ROOT')
+    if env:
+        return os.path.abspath(env)
+    root = project_root()
+    try:
+        with open(_config_path()) as f:
+            declared = (yaml.safe_load(f) or {}).get('kb_root') or ''
+    except Exception:
+        declared = ''
+    if declared:
+        return os.path.normpath(declared if os.path.isabs(declared)
+                                else os.path.join(root, declared))
+    if os.path.isfile(os.path.join(root, '.wiki-schema.md')) and os.path.isdir(os.path.join(root, 'raw')):
+        return root
+    return os.path.join(root, 'knowledge')
+
+
 def _load(path=None):
     path = path or _config_path()
     if not os.path.exists(path):
