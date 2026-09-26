@@ -5,9 +5,9 @@
   finalize: AI 响应 → 写入待审池
 
 CLI:
-  python3 products/imness/router/route.py scan < messages.json
-  python3 products/imness/router/route.py finalize '<json>'
-  python3 products/imness/router/route.py review list|accept|reject
+  python3 products/env-harness/imness/router/route.py scan < messages.json
+  python3 products/env-harness/imness/router/route.py finalize '<json>'
+  python3 products/env-harness/imness/router/route.py review list|accept|reject
 """
 import json, os, re, sys
 from datetime import datetime, timezone, timedelta
@@ -15,11 +15,11 @@ from pathlib import Path
 from typing import Optional
 
 from ._shared import parse_fm
-from .context_loader import group_important, full_config, root
+from .context_loader import group_important, full_config, root, kb_root
 from .decision import Action, Decision, DocRef, DocType, RouteJudgment
 
-PENDING_DIR = root() / "knowledge" / "pending-docs"
-LOG_PATH = root() / "knowledge" / "router-log.jsonl"
+PENDING_DIR = kb_root() / "pending-docs"
+LOG_PATH = kb_root() / "router-log.jsonl"
 
 _DOC_URL_RE = re.compile(
     r'https?://[\w.-]*('
@@ -68,7 +68,7 @@ def ai_prompt(doc: DocRef) -> str:
 
 ## 工作配置
 
-{cfg if cfg else "（未配置 knowledge/mywork.config.md）"}
+{cfg if cfg else "（未配置 mywork.config.md）"}
 
 ## 文档
 

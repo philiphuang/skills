@@ -46,6 +46,27 @@ metadata:
 
 imness 是面向 IM 的 **harness** 手段（与面向 docs 的 docness 对齐），把飞书协作内容持续加工成知识库并产出候选任务。它是**能力 skill（capability）**：脚本 + 调用说明，不含调度层。
 
+## 库根解析（kb_root）
+
+所有脚本/代码中的知识库路径 = **库根（kb_root，其下挂 `raw/` + `wiki/`）** 派生，不再散落 `knowledge/` 字面量。解析层级（`common.sh resolve_kb_root()` 与 `config.py kb_root()` 同构）：
+
+1. `IMNESS_KB_ROOT` env 显式指定（最高优先，测试/临时用）
+2. `config.yaml` 顶层 `kb_root:` 声明（正式途径；相对路径以项目根为基准，如 `kb_root: .` = 库根即项目根）
+3. 自动探测：项目根存在 `.wiki-schema.md` + `raw/` → 库根 = 项目根（库根=项目根结构）
+4. 旧默认：`$PROJECT_ROOT/knowledge`（唯一保留 `knowledge` 字面量处，向后兼容）
+
+### 跨项目部署（代码在中央库、数据在项目根）
+
+本 skill 装在中央库（如 `/opt/prjs/asserts/skills-src/imness`）经软链分发时，脚本物理位置上溯得到的"项目根"是中央库所在仓，必须用 env 指向真实项目根：
+
+```bash
+export IMNESS_PROJECT_ROOT=/path/to/real/project   # 项目根
+export IMNESS_CONFIG=$IMNESS_PROJECT_ROOT/imness/config.yaml  # 实例 config（默认=中央库 imness/config.yaml，通常不存在）
+bash /opt/prjs/asserts/skills-src/imness/scripts/collect-chats.sh --all
+```
+
+项目根本地部署（imness/ 在项目根内）时无需任何 env，路径自动正确。
+
 ## 四阶段流水 + 文档路由
 
 ```
@@ -84,9 +105,9 @@ imness **不自建 ingest 逻辑**。采集后，按以下步骤触发 ingest：
 
 **步骤 1 — 检测需要 ingest 的 raw 文件**：
 ```bash
-# 从项目根执行（路径以 knowledge/ 开头）
+# 从项目根执行（路径相对库根 kb_root）
 cd /path/to/project
-for f in knowledge/raw/transcripts/*.md knowledge/raw/meetings/*.md; do
+for f in {kb_root}/raw/transcripts/*.md {kb_root}/raw/meetings/*.md; do
   result=$(bash .claude/skills/llm-wiki/scripts/cache.sh check "$f" 2>&1 | grep -m1 '^HIT\|^MISS')
   case "$result" in
     HIT*)           ;;  # 跳过，文件未变
@@ -141,17 +162,17 @@ sdyckjq 的 cache.sh 按 raw 文件整体 SHA256 判断是否变化——增量�
 
 | 项 | 值 |
 |---|---|
-| 调用 | `python3 products/imness/router/scan_runner.py`（stdin 读 JSON 消息数组） |
-| 判断维度 | 群重要性（`knowledge/mywork.config.md`）+ AI 判断文档类型和相关性 |
-| 配置文件 | `knowledge/mywork.config.md`（人类可读写 MD，含群组重要性 + 当前工作清单） |
-| 待审池 | `knowledge/pending-docs/{timestamp}-{id}.md`（YAML frontmatter + 上下文原文） |
-| 日志 | `knowledge/router-log.jsonl`（每行一条决策 JSON） |
+| 调用 | `python3 products/env-harness/imness/router/scan_runner.py`（stdin 读 JSON 消息数组） |
+| 判断维度 | 群重要性（`{kb_root}/mywork.config.md`）+ AI 判断文档类型和相关性 |
+| 配置文件 | `{kb_root}/mywork.config.md`（人类可读写 MD，含群组重要性 + 当前工作清单） |
+| 待审池 | `{kb_root}/pending-docs/{timestamp}-{id}.md`（YAML frontmatter + 上下文原文） |
+| 日志 | `{kb_root}/router-log.jsonl`（每行一条决策 JSON） |
 | 模块 | `decision.py`（数据模型）、`context_loader.py`（配置读取）、`route.py`（编排入口）、`verify.py`（验证）、`scan_runner.py`（CLI 入口） |
 
 **全流程**:
 ```
 # 阶段A: 扫描（自动）
-echo '[...]' | python3 products/imness/router/scan_runner.py
+echo '[...]' | python3 products/env-harness/imness/router/scan_runner.py
 
 # 阶段B: AI 判断 → 入待审池（agent 调 LLM 后执行）
 from products.imness.router import finalize, write_pending
@@ -179,11 +200,11 @@ mark_processed("file.md")             # 标记完成
 | 多实例 | 遍历 `channels.feishu[]`，每个实例切 `lark_profile`（EXIT trap 恢复原 profile），串行采集 |
 | 标签路由 | 读 config 实例的 `project_tags` → 经 `config.py` → `lark-cli im +feed-group-list` 找 group_id（加群在飞书界面操作，零代码改动） |
 | 身份 | `my_aliases`/`my_name` 经 `config.py` 读取，单聊辨认对方名时按实例排除自己 |
-| 产出 | `knowledge/raw/transcripts/{显示名}_{chat_id前12位}_{YYYY-MM}.md`（bold-speaker 格式，每条消息带 `<!-- msg_id:xxx -->` 锚点 + 文件头 frontmatter，已打码）。`YYYY-MM` 为文件创建时的月份。兼容旧文件（无月份后缀，采集时自动识别）。 |
-| 增量 | index 有 `last_message.create_time` → 带 `--start` 只拉新消息；否则全量。游标按实例隔离，存 `knowledge/index.json` 的 `chats[].last_message.create_time`（含 `chats[].instance` 区分多实例） |
+| 产出 | `{kb_root}/raw/transcripts/{显示名}_{chat_id前12位}_{YYYY-MM}.md`（bold-speaker 格式，每条消息带 `<!-- msg_id:xxx -->` 锚点 + 文件头 frontmatter，已打码）。`YYYY-MM` 为文件创建时的月份。兼容旧文件（无月份后缀，采集时自动识别）。 |
+| 增量 | index 有 `last_message.create_time` → 带 `--start` 只拉新消息；否则全量。游标按实例隔离，存 `{kb_root}/index.json` 的 `chats[].last_message.create_time`（含 `chats[].instance` 区分多实例） |
 | 去重 | 全量/增量拉取后统一按 msg_id 去重重写（幂等：飞书无新消息时文件不变）；合并时保留 frontmatter |
 | 计数 | `chats[].message_count` 基于文件内 msg_id 锚点数（与归一化的 seen 口径一致） |
-| 日志 | `knowledge/sync.log`（时间\|[实例]\|会话名\|模式\|+新增(总条数)\|耗时）；切割时追加 `SPLIT` 事件 |
+| 日志 | `{kb_root}/sync.log`（时间\|[实例]\|会话名\|模式\|+新增(总条数)\|耗时）；切割时追加 `SPLIT` 事件 |
 
 **自动切割**: 单文件超过 `SPLIT_SIZE_KB`（默认 200）时，采集流程自动冻结当前文件（不再追写），新建 `{显示名}_{chat_id前12位}_{当前月份}.md` 承接后续消息。下次采集自动找到最新月份文件继续追写。切割事件记入 sync.log（`SPLIT \| {会话}: {旧大小}KB → {新文件名}`）。适用于大群聊（消息量持续增长），小私聊不会触发。
 | 何时用 | 需要拉取/更新飞书群聊和单聊消息到本地时 |
@@ -201,7 +222,7 @@ mark_processed("file.md")             # 标记完成
 | 调用 | `scripts/collect-meetings.sh [--instance <name> \| --dry-run]`（无参遍历所有实例） |
 | 发现渠道 | **标签匹配**（#22）：同时具有「本实例 project_tags 任一」**和**「会议记录」标签的群 = 会议发现群（`config.py meeting-chats`）。不再用硬编码 chat_id |
 | 前提 | 会议发现群需先经 collect-chats 采集到本地 transcript |
-| 产出 | `knowledge/raw/meetings/{标题}_{token前12位}.md`（frontmatter → 标题→会议总结→待办→时间线→关键词，已打码） |
+| 产出 | `{kb_root}/raw/meetings/{标题}_{token前12位}.md`（frontmatter → 标题→会议总结→待办→时间线→关键词，已打码） |
 | 去重 | 按 minute_token 前 12 位（已采的跳过） |
 | 何时用 | 需要归档飞书会议妙记（纪要/待办/章节）时 |
 
@@ -260,7 +281,7 @@ mark_processed("file.md")             # 标记完成
 | 调用 | `scripts/maintain.sh`（手动触发；调度自动化另议，spec Out of Scope） |
 | 产出 | `reports/{date}-maintenance.md`（断链/过时/frontmatter 问题待人工） |
 | 检查项 | 孤立页（排除 sources 叶子页）/ 断链 / 过时（>90天）/ frontmatter / 置信度标签 |
-| 自动修复 | 孤立页补链接到 `knowledge/index.md`（幂等，已存在则跳过） |
+| 自动修复 | 孤立页补链接到 `{kb_root}/index.md`（幂等，已存在则跳过） |
 | 何时用 | 知识库健康巡检、ingest 后定期检查、发现矛盾/孤立页/断链时 |
 
 **注意**: sdyckjq skill 自带的 `lint-runner.sh` 依赖 monorepo packages，跨项目不可用。imness maintain 自建轻量 lint（移植核心检查 + 置信度标签统计），不依赖已归档 skill。
@@ -275,8 +296,10 @@ mark_processed("file.md")             # 标记完成
 
 ## 知识库结构（sdyckjq 骨架，已就位）
 
+以下为**库根（kb_root）** 下的结构——kb_root 由「库根解析」节所述四级层级裁决（旧默认为项目根下 `knowledge/`，库根=项目根结构时即项目根本身）：
+
 ```
-knowledge/
+{kb_root}/
 ├── raw/transcripts/    会话原始对话（打码版，进 git）
 ├── raw/meetings/       会议妙记产物（打码版）
 ├── mywork.config.md    路由策略配置（群重要性+当前工作清单）

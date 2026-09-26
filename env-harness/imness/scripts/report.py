@@ -12,11 +12,13 @@ import os, re, sys, subprocess
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
-# 路径（与 common.sh 对齐）
+# 路径（与 common.sh 对齐）：项目根/库根经 config.py 唯一裁决
+# （IMNESS_PROJECT_ROOT / IMNESS_KB_ROOT env 可覆盖，config.yaml kb_root 可声明）
 SCRIPT_DIR = Path(__file__).parent.resolve()
-IMNESS_DIR = SCRIPT_DIR.parent
-PROJECT_ROOT = IMNESS_DIR.parent
-KNOWLEDGE_DIR = PROJECT_ROOT / 'knowledge'
+sys.path.insert(0, str(SCRIPT_DIR))
+import config as _cfg
+PROJECT_ROOT = Path(_cfg.project_root())
+KNOWLEDGE_DIR = Path(_cfg.kb_root())
 WIKI_DIR = KNOWLEDGE_DIR / 'wiki'
 REPORTS_DIR = PROJECT_ROOT / 'reports'
 

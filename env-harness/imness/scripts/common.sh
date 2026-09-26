@@ -17,10 +17,38 @@ err()   { printf '\033[31m[错误]\033[0m %s\n' "$1" >&2; }
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 IMNESS_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"          # imness/
-PROJECT_ROOT="$(cd "$IMNESS_DIR/.." && pwd)"        # MCloud 项目根
-KNOWLEDGE_DIR="$PROJECT_ROOT/knowledge"
+# 项目根：默认 = imness/ 上级；跨项目部署（代码在中央库、数据在项目根）时
+# 用 IMNESS_PROJECT_ROOT 指向真实项目根（与 config.py project_root() 对齐）
+PROJECT_ROOT="${IMNESS_PROJECT_ROOT:-$(cd "$IMNESS_DIR/.." && pwd)}"
+# config 位置：默认 = imness/config.yaml；IMNESS_CONFIG 可覆盖（与 config.py 对齐）
+CONFIG_FILE="${IMNESS_CONFIG:-$IMNESS_DIR/config.yaml}"
+
+# 库根解析（其下挂 raw/ + wiki/），与 config.py kb_root() 同构：
+#   IMNESS_KB_ROOT env > config.yaml kb_root > 自动探测(.wiki-schema.md + raw/) > 项目根/knowledge（旧默认）
+# 除末尾旧默认外，代码任何地方不得再出现 knowledge 路径字面量。
+resolve_kb_root() {
+  if [[ -n "${IMNESS_KB_ROOT:-}" ]]; then echo "$IMNESS_KB_ROOT"; return; fi
+  local declared
+  declared=$(IMNESS_CFG="$CONFIG_FILE" PR="$PROJECT_ROOT" python3 -c "
+import os, yaml
+try:
+    with open(os.environ['IMNESS_CFG']) as f: cfg = yaml.safe_load(f) or {}
+    d = cfg.get('kb_root') or ''
+    print(os.path.normpath(d if os.path.isabs(d) else os.path.join(os.environ['PR'], d)) if d else '')
+except Exception: print('')
+" 2>/dev/null) || declared=''
+  if [[ -n "$declared" ]]; then
+    echo "$declared"
+    return
+  fi
+  if [[ -f "$PROJECT_ROOT/.wiki-schema.md" && -d "$PROJECT_ROOT/raw" ]]; then
+    echo "$PROJECT_ROOT"
+  else
+    echo "$PROJECT_ROOT/knowledge"
+  fi
+}
+KNOWLEDGE_DIR="$(resolve_kb_root)"
 WIKI_DIR="$KNOWLEDGE_DIR/wiki"
-CONFIG_FILE="$IMNESS_DIR/config.yaml"
 REDACT_PY="$SCRIPT_DIR/redact.py"
 TOOLS_PY="$SCRIPT_DIR/chat_tools.py"
 

@@ -1,6 +1,6 @@
 """scan_runner — 安全执行扫描的引导脚本。
 
-用法: cat messages.json | python3 products/imness/router/scan_runner.py [--write]
+用法: cat messages.json | python3 products/env-harness/imness/router/scan_runner.py [--write]
 
 从项目根目录执行，自动解决 relative import 问题。
 """
