@@ -60,20 +60,6 @@ def match_url_pattern(url: str, patterns: list[tuple[str, str, str]]) -> dict | 
     return None
 
 
-def generate_meeting_filename(
-    subject: str,
-    attendees: list[str],
-    date: str,
-    suffix: str = "纪要",
-) -> tuple[str, str]:
-    date_part = date.replace("-", "")[2:8]
-    attendee_part = "".join(attendees[:2])
-    clean_subject = re.sub(r"[^\w\u4e00-\u9fff\-]", "", subject)[:20]
-    filename = f"{date_part}-{attendee_part}-{clean_subject}-{suffix}.md"
-    directory = f"{date_part}{clean_subject}"
-    return filename, directory
-
-
 def ensure_dir(path: str | Path) -> Path:
     p = Path(path)
     p.mkdir(parents=True, exist_ok=True)
