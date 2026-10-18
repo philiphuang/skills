@@ -10,10 +10,12 @@
 | `docs.qq.com/docx/*` | 腾讯智能文档 | `tencent-docs.get_content` |
 | `docs.qq.com/*` | 腾讯文档（其他） | `tencent-docs.get_content` |
 | `*.feishu.cn/docx/*` | 飞书文档 | `lark-doc` |
-| `*.feishu.cn/minutes/*` | 飞书妙记 | `lark-minutes` |
+| `*.feishu.cn/wiki/*` | 飞书知识库文档 | `lark-doc` |
+| `*.feishu.cn/minutes/*` | 飞书妙记 | `lark-meeting` |
 | `*.feishu.cn/vc/*` | 飞书会议 | `lark-vc` |
 | `*.larksuite.com/*` | Lark 文档 | `lark-doc` |
 | `meeting.tencent.com/*` | 腾讯会议 | `tencent-meeting-mcp` |
+| `*.qianwen.com/chat/*` | 千问录音会话（逐字稿） | `qianwen-minutes-sync.fetch`（本仓库 products/） |
 | `*.md` (URL or local) | Markdown | send intent (if no other intent) |
 | Other URL | 通用网页 | `baoyu-url-to-markdown` |
 | Local `.docx`/`.doc` | Word 文件 | pandoc（优先）→ MinerU（复杂）→ Anthropic `docx`（兜底） |
@@ -40,8 +42,8 @@
 
 - **范围**：读所有已入库 md（正文与附件），提取 `https?://` URL（排除 `mailto:`），去重。
 - **过滤（仅 docness 可识别）**：只保留 docness 能拉取的来源——腾讯文档
-  `docs.qq.com/sheet|doc|slide|docx`、飞书 `feishu.cn/docx|minutes|vc`、Lark `larksuite.com`、
-  腾讯会议 `meeting.tencent.com`；**内网 IP、占位符、外部工具站（oschina/mirrors 等）不记录**。
+  `docs.qq.com/sheet|doc|slide|docx`、飞书 `feishu.cn/docx|wiki|minutes|vc`、Lark `larksuite.com`、
+  腾讯会议 `meeting.tencent.com`、千问录音 `qianwen.com/chat`；**内网 IP、占位符、外部工具站（oschina/mirrors 等）不记录**。
 - **落位**：`原文.URL.md` 与收件箱源文件**同名**（`{源文件名}.URL.md`），存收件箱目录下；
   知识库为入库副本。
 - **三类分录**（三节分开）：① 提取到的 URL（仅 docness 可识别，附引用次数）；

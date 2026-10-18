@@ -3,7 +3,7 @@ name: docness
 description: 文档收发编排器。把各来源文档（URL/本地/腾讯文档/飞书/会议录音）收进来转为 Markdown 入知识库，或从 Markdown 生成配图/PPT/Word/PDF 并推送到飞书/腾讯文档。用户要收集/归档文档、配图/转格式、或推送/上传文档时使用。
 license: MIT
 metadata:
-  version: "1.3.0"
+  version: "1.4.0"
   mode: production
   platform: opencode
 ---
@@ -111,10 +111,10 @@ docness:
 | 来源 | skill | 用途 |
 |------|-------|------|
 | 外部（腾讯） | tencent-docs, tencent-meeting-mcp | 腾讯文档导出、腾讯会议纪要 |
-| 外部（飞书 lark-cli） | lark-doc, lark-shared, lark-minutes, lark-vc | 飞书文档/妙记/会议 |
+| 外部（飞书 lark-cli） | lark-doc, lark-shared, lark-meeting, lark-vc | 飞书文档/妙记（逐字稿）/会议 |
 | 外部（baoyu-skills） | baoyu-url-to-markdown, baoyu-image-gen, baoyu-slide-deck | 网页抓取、配图、PPT |
 | 外部（Anthropic） | docx, pdf, pptx | simple 管道全部失败后的兜底输出 |
-| 本仓库 products/ | md2feishu | Markdown → 飞书文档 |
+| 本仓库 products/ | md2feishu, qianwen-minutes-sync | Markdown → 飞书文档；千问录音逐字稿导出（getter） |
 | skillshare 中央库 | transcribe, mineru | 音视频转写、复杂文档高保真转换 |
 
 ## 依赖系统工具

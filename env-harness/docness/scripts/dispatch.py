@@ -27,10 +27,12 @@ URL_PATTERNS: list[tuple[str, str, str]] = [
     (r"docs\.qq\.com/docx/", "tencent-smartdoc", "tencent-docs.get_content"),
     (r"docs\.qq\.com/", "tencent-docs", "tencent-docs.get_content"),
     (r"feishu\.cn/docx/", "feishu-doc", "lark-doc"),
-    (r"feishu\.cn/minutes/", "feishu-minutes", "lark-minutes"),
+    (r"feishu\.cn/wiki/", "feishu-doc", "lark-doc"),
+    (r"feishu\.cn/minutes/", "feishu-minutes", "lark-meeting"),
     (r"feishu\.cn/vc/", "feishu-vc", "lark-vc"),
     (r"larksuite\.com/", "lark", "lark-doc"),
     (r"meeting\.tencent\.com/", "tencent-meeting", "tencent-meeting-mcp"),
+    (r"qianwen\.com/chat/", "qianwen-audio", "qianwen-minutes-sync.fetch"),
 ]
 
 COLLECT_TRIGGERS = {"收集", "下载", "拉取", "保存", "归档", "整理", "录制"}

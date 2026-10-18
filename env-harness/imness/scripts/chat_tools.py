@@ -6,7 +6,7 @@
 - cmd_normalize 集成 redact（写 raw 前打码）
 - cmd_find_name 的「排除自己」逻辑保留（黄志恒 = 当前 lark 用户）
 
-多实例支持（#24）：cmd_find_name / cmd_normalize / cmd_normalize_meeting /
+多实例支持（#24）：cmd_find_name / cmd_normalize /
 cmd_update_index / cmd_get_cursor 均接受可选 `--instance <name>` 参数：
 - 有 --instance：按该实例的 aliases 排除自己、写 source_channel/source_instance
   frontmatter、index 游标按实例隔离。
@@ -223,6 +223,10 @@ def cmd_dedupe_merge():
     frontmatter 保留（#25 修复 #24 发现的隐患）：parse_blocks 按锚点切分会
     丢掉首锚点前的 frontmatter。合并后从 existing（优先）或 new 重新提取
     frontmatter 前缀拼回输出开头，保证 source_channel/source_instance 不丢。
+
+    旧格式存量保护（#82）：无锚点的存量正文（chat_logs 时代格式）同样会被
+    parse_blocks 整体丢弃——一次增量采集即抹掉全部历史。此类正文原样保留
+    在 frontmatter 之后、锚点块之前，并向 stderr 报 WARN。
     """
     existing = sys.stdin.read()
     new = open(sys.argv[2]).read() if len(sys.argv) > 2 else ''
@@ -267,6 +271,26 @@ def cmd_dedupe_merge():
             blocks.append((current_anchor, ct, ''.join(current_body)))
         return blocks
 
+    def legacy_preamble(text):
+        """提取首个 msg_id 锚点之前、frontmatter 之后的存量正文。
+
+        旧格式（chat_logs 时代，无锚点）的 raw 文件整体落在首锚点之前，
+        parse_blocks 会把它整体丢弃——一次增量采集就抹掉全部历史（#82
+        发现的活雷）。此类正文必须原样保留在输出开头。
+        """
+        m = re.search(r'<!-- msg_id:[^>]+ -->', text)
+        head = text[:m.start()] if m else text
+        fm = extract_frontmatter(head)
+        if fm:
+            head = head.lstrip()[len(fm):]
+        return head.strip('\n')
+
+    # 旧格式存量保护（#82）：无锚点正文原样保留在开头，绝不静默丢弃
+    legacy = legacy_preamble(existing)
+    if legacy:
+        print(f'WARN: 存量含无锚点旧格式正文 {len(legacy)} 字符，已保留在输出开头',
+              file=sys.stderr)
+
     # 去重（保首次出现），再按 create_time 升序排（ISO 数字串可字典序比较）
     merged = {}
     for mid, ct, body in parse_blocks(existing) + parse_blocks(new):
@@ -277,8 +301,13 @@ def cmd_dedupe_merge():
         ct = item[1][0]
         return ct if _is_iso_like(ct) else '9999'
     ordered = sorted(merged.items(), key=sort_key)
-    # frontmatter 拼回开头（修复 #24 发现的增量丢失隐患）
-    print(frontmatter + ''.join(body for _, (_, body) in ordered), end='')
+    # frontmatter 拼回开头（修复 #24 发现的增量丢失隐患）；
+    # legacy 正文紧随其后、锚点块之前（旧内容时间上本就更早）
+    out = frontmatter
+    if legacy:
+        out += legacy + '\n\n'
+    out += ''.join(body for _, (_, body) in ordered)
+    print(out, end='')
     print(f'\nDEDUPED_COUNT:{len(ordered)}', file=sys.stderr)
 
 def cmd_update_index():
@@ -341,97 +370,6 @@ def cmd_merge():
     existing.extend(new)
     print(json.dumps(existing, ensure_ascii=False))
 
-
-def cmd_normalize_meeting():
-    """把 +detail 的 JSON 产物归一化成结构化 markdown。
-
-    stdin = +detail 输出（含进度日志前缀，自动跳过非 JSON 行）。
-    输出 = markdown 正文 + `MEETING_TOKEN:<token>` 计数行。
-    结构：标题 → summary（结论）→ todos（待办）→ chapters（timeline）→ keywords。
-    全文调 redact 打码。
-    """
-    raw = sys.stdin.read()
-    # 跳过进度日志行，取第一个 { 开始的 JSON
-    json_start = raw.find('\n{')
-    if json_start == -1 and not raw.lstrip().startswith('{'):
-        sys.stderr.write('未找到 JSON 输出\n')
-        sys.exit(1)
-    json_text = raw[json_start + 1:] if json_start != -1 else raw
-    try:
-        d = json.loads(json_text)
-    except json.JSONDecodeError as e:
-        sys.stderr.write(f'JSON 解析失败: {e}\n')
-        sys.exit(1)
-
-    minutes = d.get('data', {}).get('minutes', [])
-    if not minutes:
-        sys.stderr.write('无 minute 数据\n')
-        sys.exit(1)
-
-    m = minutes[0]
-    token = m.get('minute_token', '')
-    title = redact(m.get('title', '未知会议'))
-    art = m.get('artifacts', {})
-    summary = redact(art.get('summary', '') or '')
-    todos = art.get('todos', []) or []
-    chapters = art.get('chapters', []) or []
-    keywords = art.get('keywords', []) or []
-
-    instance, _ = _parse_instance_arg()
-    lines = []
-    # 溯源 frontmatter（#23）：与 cmd_normalize 对齐
-    if instance:
-        lines.append('---')
-        lines.append('source_channel: feishu')
-        lines.append(f'source_instance: {instance}')
-        lines.append('---')
-        lines.append('')
-    lines.append(f'# {title}')
-    lines.append('')
-    lines.append(f'<!-- minute_token:{token} -->')
-    lines.append(f'- note_id: {m.get("note_id", "")}')
-    lines.append('')
-
-    if summary:
-        lines.append('## 会议总结')
-        lines.append('')
-        lines.append(summary)
-        lines.append('')
-
-    if todos:
-        lines.append('## 待办')
-        lines.append('')
-        for t in todos:
-            content = redact(t.get('content', ''))
-            done = 'x' if t.get('is_done') else ' '
-            tid = t.get('todo_id', '')
-            lines.append(f'- [{done}] {content} <!-- todo_id:{tid} -->')
-        lines.append('')
-
-    if chapters:
-        lines.append('## 时间线')
-        lines.append('')
-        for ch in chapters:
-            ch_title = redact(ch.get('title', ''))
-            ch_sum = redact(ch.get('summary_content', ''))
-            start_ms = int(ch.get('start_ms', 0))
-            stop_ms = int(ch.get('stop_ms', 0))
-            def ms_to_str(ms):
-                s = ms // 1000
-                return f'{s // 3600:02d}:{(s % 3600) // 60:02d}:{s % 60:02d}'
-            lines.append(f'### [{ms_to_str(start_ms)} - {ms_to_str(stop_ms)}] {ch_title}')
-            lines.append('')
-            lines.append(ch_sum)
-            lines.append('')
-
-    if keywords:
-        lines.append('## 关键词')
-        lines.append('')
-        lines.append('、'.join(redact(k) for k in keywords))
-        lines.append('')
-
-    print('\n'.join(lines))
-    print(f'MEETING_TOKEN:{token}')
 
 def cmd_find_active():
     """找指定会话的最新活跃文件（兼容新旧命名约定）。

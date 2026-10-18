@@ -134,9 +134,10 @@ process_chat() {
 
   # 按 msg_id 去重合并：已有文件 + 新内容 → 重写文件（幂等）
   # frontmatter 由 cmd_dedupe_merge 在合并时保留（#25 修复增量丢失）
+  # 不吞 stderr：merge 失败时 set -e 在 mv 前中止，错误须可见（#82）
   local final_count
   if [[ -f "$file_path" ]]; then
-    python3 "$TOOLS" cmd_dedupe_merge "$tmp_new" < "$file_path" > "$file_path.new" 2>/dev/null
+    python3 "$TOOLS" cmd_dedupe_merge "$tmp_new" < "$file_path" > "$file_path.new"
     mv "$file_path.new" "$file_path"
     # 计数口径统一：基于文件内 msg_id 锚点数（与 cmd_normalize 的 seen 口径一致）
     final_count=$(grep -c 'msg_id:' "$file_path" 2>/dev/null || echo 0)

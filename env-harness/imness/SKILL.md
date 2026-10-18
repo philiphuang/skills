@@ -1,7 +1,7 @@
 ---
 name: imness
-description: 飞书 IM 会话与会议采集加工器。采集飞书群聊/单聊消息和会议妙记（含妙记结构化产物），打码脱敏后构建可自维护的 markdown 知识库，并提取候选任务供人工 triage。触发词：采集、拉取、会话、群聊、单聊、会议、妙记、纪要、待办、知识库、报告、巡检、整理。不负责：调度层(cron/编排)、非飞书源(微信/email)、跨项目分发、向他人自动派发任务。
-version: 1.0.0
+description: 飞书 IM 会话采集加工器。采集飞书群聊/单聊消息，打码脱敏后构建可自维护的 markdown 知识库；发现会议妙记链接并转交 docness 收逐字稿；提取候选任务供人工 triage。触发词：采集、拉取、会话、群聊、单聊、会议、妙记、纪要、待办、知识库、报告、巡检、整理。不负责：调度层(cron/编排)、非飞书源(微信/email)、跨项目分发、向他人自动派发任务、妙记取件落库(docness 职责)。
+version: 1.1.0
 metadata:
   mode: production
   platform: opencode
@@ -14,13 +14,9 @@ metadata:
         source: "larksuite/cli (lark skill)"
         role: "会话采集——提供 +feed-group-list / +feed-group-list-item / +chat-messages-list 动作"
         required: true
-      - name: "lark-minutes"
-        source: "larksuite/cli (lark skill)"
-        role: "会议妙记采集——提供 +detail 动作拉结构化产物"
-        required: true
       - name: "lark-shared"
         source: "larksuite/cli (lark skill)"
-        role: "lark-im/lark-minutes 的前置依赖——认证与权限处理"
+        role: "lark-im 的前置依赖——认证与权限处理"
         required: true
       # hard: 知识库 ingest 引擎
       - name: "llm-wiki"
@@ -70,16 +66,19 @@ bash /opt/prjs/asserts/skills-src/imness/scripts/collect-chats.sh --all
 ## 四阶段流水 + 文档路由
 
 ```
-① 采集          ② 打码/归一化         ③ ingest          ④ 提取/报告
-飞书会话消息   →   硬凭证打码        →   写入知识库    →   候选任务报告
-飞书会议妙记       归一化 episodes       (sdyckjq)           (人工 triage 出口)
+① 采集              ② 打码/归一化         ③ ingest          ④ 提取/报告
+飞书会话消息       →   硬凭证打码        →   写入知识库    →   候选任务报告
+会议妙记链接发现       归一化 episodes       (sdyckjq)           (人工 triage 出口)
+（转交 docness 收逐字稿，#201）
+```
 
-                      ═══ 文档路由链（群文档 → docness）═══
-                      采集后扫消息 → 发现文档链接/附件 → router(三段判断)
-                                                      → 通过 → pending-docs/(待审池)
-                                                      → 不通过 → 记录跳过
-                      人工审核 → accepted → docness(URL/附件下载→收录)
-                               → rejected → 放弃
+```
+═══ 文档路由链（群文档 → docness）═══
+采集后扫消息 → 发现文档链接/附件 → router(三段判断)
+                                → 通过 → pending-docs/(待审池)
+                                → 不通过 → 记录跳过
+人工审核 → accepted → docness(URL/附件下载→收录)
+         → rejected → 放弃
 ```
 
 飞书任务是**第④阶段的处理出口**（手动新建/关闭），不是采集源。不做反向同步。
@@ -105,9 +104,10 @@ imness **不自建 ingest 逻辑**。采集后，按以下步骤触发 ingest：
 
 **步骤 1 — 检测需要 ingest 的 raw 文件**：
 ```bash
-# 从项目根执行（路径相对库根 kb_root）
+# 从项目根执行（路径相对库根 kb_root）；{$知识库} 按项目说明文件
+# `## Docness 工作目录` 声明解析（如 MCloud 为 raw/）
 cd /path/to/project
-for f in {kb_root}/raw/transcripts/*.md {kb_root}/raw/meetings/*.md; do
+for f in {kb_root}/raw/transcripts/*.md {kb_root}/raw/meetings/*.md "{$知识库}/会议纪要/"*.txt; do
   result=$(bash .claude/skills/llm-wiki/scripts/cache.sh check "$f" 2>&1 | grep -m1 '^HIT\|^MISS')
   case "$result" in
     HIT*)           ;;  # 跳过，文件未变
@@ -123,7 +123,7 @@ done
 
 > ⚠️ **imness 对 sdyckjq（即 `.claude/skills/llm-wiki/`）ingest 工作流的适配**（不修改 sdyckjq 代码，这些是指令层面的调整）：
 
-1. **跳过隐私自查**：sdyckjq 工作流 2 第 253 行要求「首次进入 ingest 必须执行隐私自查提示（y/n）」。imness 的 raw 文件已在采集层经 redact 打码（4 类硬凭证），不含明文密码/API Key/手机号/client_secret。**根据 sdyckjq 第 275 行的 batch-ingest 绕过规则**（"用户在当前对话里已经明确说过素材里没有敏感信息，直接开始，或者用户是在 batch-ingest 流程中已经在顶层确认过一次，AI 可以跳过这一步"），imness 场景等同于 batch-ingest——raw 文件已确认不含硬凭证，**直接跳过隐私自查提示**。
+1. **跳过隐私自查**：sdyckjq 工作流 2 第 253 行要求「首次进入 ingest 必须执行隐私自查提示（y/n）」。进入 Step 1 的内容均已过硬凭证打码：会话 transcript 在采集层经 redact（4 类硬凭证）；**会议逐字稿（`{$知识库}/会议纪要/*.txt`）由 docness 保真落库、未打码，ingest 前先把内容过 `redact.py`（stdin→stdout），raw 文件本身不改**（#201：redact 移 ingest、collect 只保真）。**根据 sdyckjq 第 275 行的 batch-ingest 绕过规则**（"用户在当前对话里已经明确说过素材里没有敏感信息，直接开始，或者用户是在 batch-ingest 流程中已经在顶层确认过一次，AI 可以跳过这一步"），imness 场景等同于 batch-ingest——**直接跳过隐私自查提示**。
 
 2. **跳过 source-registry 路由**：sdyckjq 的素材类型表（source-registry.tsv）只定义了 web_article/pdf/wechat 等 9 种来源，不认识「飞书会话归档」。imness 的 raw 文件**直接作为 local_document 类型进入 Step 1**，不调 source-registry.sh match-file。
 
@@ -213,24 +213,22 @@ mark_processed("file.md")             # 标记完成
 
 **依赖**: `common.sh`（共享路径/日志函数 + `get_feed_group_id`，按实例取 project_tags）、`chat_tools.py`（归一化/去重/索引，均接收 `--instance`）、`config.py`（config 唯一读取入口）。
 
-### collect-meetings.sh — 会议妙记采集（多实例）
+### collect-meetings.sh — 会议妙记链接发现（多实例）
 
-遍历 config 所有飞书实例 → 每个实例用标签匹配找会议发现群 → 从这些群已采集的 raw transcript 提取妙记链接 → `lark-minutes +detail` 拉结构化产物 → 归一化（含 redact 打码 + source frontmatter）→ 写 raw/meetings。
+遍历 config 所有飞书实例 → 每个实例用标签匹配找会议发现群 → 从这些群已采集的 raw transcript 提取妙记 URL → 对照已收逐字稿去重 → stdout 打印未收录 URL 清单。**只发现不取件**（#201 分工铁律）：把打印出的 URL 逐条交给 docness collect（裸妙记 URL 输入即触发其 4c 会议分支），逐字稿落 `{$知识库}/会议纪要/`；imness 不调 `minutes +detail`、不归一化、不打码、不写 raw/meetings。
 
 | 项 | 值 |
 |---|---|
 | 调用 | `scripts/collect-meetings.sh [--instance <name> \| --dry-run]`（无参遍历所有实例） |
-| 发现渠道 | **标签匹配**（#22）：同时具有「本实例 project_tags 任一」**和**「会议记录」标签的群 = 会议发现群（`config.py meeting-chats`）。不再用硬编码 chat_id |
+| 发现渠道 | **标签匹配**（#22）：同时具有「本实例 project_tags 任一」**和**「会议记录」标签的群 = 会议发现群（`get_meeting_chats`）。不再用硬编码 chat_id |
 | 前提 | 会议发现群需先经 collect-chats 采集到本地 transcript |
-| 产出 | `{kb_root}/raw/meetings/{标题}_{token前12位}.md`（frontmatter → 标题→会议总结→待办→时间线→关键词，已打码） |
-| 去重 | 按 minute_token 前 12 位（已采的跳过） |
-| 何时用 | 需要归档飞书会议妙记（纪要/待办/章节）时 |
+| 产出 | stdout 每行一条未收录妙记 URL（stdout 只有 URL，进度走 stderr），交 docness collect |
+| 去重 | 按 minute_token 对照已收逐字稿（`{$知识库}/会议纪要/*.txt` frontmatter 的 source；`{$知识库}` 按项目说明文件 `## Docness 工作目录` 解析，失败时不去重交 docness 判重）。旧 raw/meetings digest **不算**已收录 |
+| 何时用 | 需要发现新的飞书妙记并收逐字稿时（发现后配 docness collect） |
 
-**前提**: 该群消息需先经 collect-chats 采集到本地。会议采集复用会话扫消息管线，不单独拉取。
+**前提**: 该群消息需先经 collect-chats 采集到本地。链接发现复用会话采集产物扫消息，不单独拉取。
 
-**结构化字段**（妙记链路独有）: `artifacts.{summary(str), todos[](content/is_done/todo_id), chapters[](start_ms/stop_ms/title/summary_content), keywords[]}`。飞书无 vc 一条龙，这些字段只在妙记链路。附件不下载，只记引用。
-
-**可消费性**: todos 进「待办」区（带 `<!-- todo_id:xxx -->` 锚点），chapters 进「时间线」区（带时段），供下游 ingest 和 report 消费。
+**旧 digest 产物**（raw/meetings/*.md：frontmatter → 标题 → 会议总结 → 待办 → 时间线 → 关键词）由 #201 前的妙记链路产生，保留供 report.py 来源 1 消费，不再新增；待办/关键词等加工改由 ingest 从逐字稿提取（经 sdyckjq 产出，report 来源 4）。
 
 ### redact.py — 打码
 
@@ -239,7 +237,7 @@ mark_processed("file.md")             # 标记完成
 | 项 | 值 |
 |---|---|
 | 调用 | `python3 scripts/redact.py`（stdin→stdout）或 `from redact import redact; redact(text)` |
-| 何时用 | collect 脚本写 raw 前；任何要把飞书内容落 git 前的安全过滤 |
+| 何时用 | collect 脚本写 raw 前；会议逐字稿 ingest 前（#201：逐字稿保真落库，打码移到 ingest，见「ingest 如何工作」）；任何要把飞书内容落 git 前的安全过滤 |
 | 测试 | `python3 imness/scripts/test_redact.py`（26 用例，4 类正反例 + 幂等 + 混合） |
 
 **打码边界**（详细正则见 `scripts/redact.py`，运行 `test_redact.py` 看真实样例）:
@@ -259,7 +257,7 @@ mark_processed("file.md")             # 标记完成
 | 项 | 值 |
 |---|---|
 | 调用 | `python3 imness/scripts/report.py [--feishu]` |
-| 来源 1 | `raw/meetings/*.md` 的「## 待办」段（带 todo_id 锚点，置信度 `EXTRACTED`） |
+| 来源 1 | `raw/meetings/*.md`（旧 digest 产物，#201 起停采）的「## 待办」段（带 todo_id 锚点，置信度 `EXTRACTED`） |
 | 来源 2 | `wiki/topics/*.md` 的「## 待办」段（置信度 `INFERRED`） |
 | 来源 3 | `wiki/synthesis/sessions/*.md` 的结晶任务（置信度 `INFERRED`） |
 | 来源 4 | `wiki/sources/*.md` 的「## 候选任务」段（sdyckjq ingest 产出，置信度 `EXTRACTED`）— **imness ↔ sdyckjq 协作的关键断点** |
@@ -301,7 +299,7 @@ mark_processed("file.md")             # 标记完成
 ```
 {kb_root}/
 ├── raw/transcripts/    会话原始对话（打码版，进 git）
-├── raw/meetings/       会议妙记产物（打码版）
+├── raw/meetings/       旧妙记 digest（#201 起停采；逐字稿由 docness 落 {$知识库}/会议纪要/）
 ├── mywork.config.md    路由策略配置（群重要性+当前工作清单）
 ├── pending-docs/        待审池（路由通过的文档等人工审核）
 ├── router-log.jsonl     路由决策日志

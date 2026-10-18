@@ -11,7 +11,9 @@ WS=$(python3 -m scripts.init_workspace "<项目根目录>")
 ```
 
 `WS` 是 JSON，`workspace` 内含 `收件箱` / `知识库` / `工作台` / `发件箱` / `logs` 的**绝对路径**。
-本文所有 `收件箱/`、`知识库/`、`工作台/`、`发件箱/`、`.logs/` 一律指 WS 输出中的绝对路径，
+本文路径统一写 `{$目录}/…` 占位符：`{$xxx}`（`$` 前缀）为工作区变量，按项目说明文件
+`## Docness 工作目录` 声明的变量解析，等值于 WS 输出中对应目录的绝对路径；
+无 `$` 前缀的 `{yyy}`（如 `{yymmdd}`）为运行时取值槽。
 **严禁落到 skill 自身目录**（如 `.claude/skills/docness/知识库/`）：
 
 - 项目说明文件（`AGENTS.md` / `CLAUDE.md` 等）已声明工作区 → 遵循声明
@@ -29,8 +31,8 @@ WS=$(python3 -m scripts.init_workspace "<项目根目录>")
 ## 流程
 
 1. **输入识别** — 运行 `python3 -m scripts.dispatch "<输入>"`（从 docness 目录执行；输出仅用于识别意图，不产生文件），解析返回 JSON 获得 intent/subtype/source_type
-2. **保存原始 URL** — URL 类型的输入先写入 `收件箱/{timestamp}-url.txt`（`收件箱` 取 WS 输出的绝对路径）
-3. **本地文件** — 复制到 `收件箱/`（同上）
+2. **保存原始 URL** — URL 类型的输入先写入 `{$收件箱}/{timestamp}-url.txt`
+3. **本地文件** — 复制到 `{$收件箱}/`
 4. **格式转换** —— 两阶段路由：
    - **4a 旧格式桥接** — .doc/.ppt/.xls/.wps 先经 LibreOffice headless 转为新格式（.docx/.pptx/.xlsx）再进入判定。LibreOffice 不可用时提示用户手动另存，或降级走 Anthropic Skill。桥接产物放系统临时目录。
    - **4b 复杂度判定路由** — 对新格式文件运行 `python3 -m scripts.complexity <文件路径> <文件类型>` 或调用 `decide_route()`：
@@ -56,15 +58,30 @@ WS=$(python3 -m scripts.init_workspace "<项目根目录>")
    - **4c 特殊输入类型** — 腾讯文档/飞书/会议/网页/音视频不受复杂度路由影响，仍走原有 skill 链路（URL→来源类型映射见 `references/url-patterns.md`，权威定义在 `scripts/dispatch.py:URL_PATTERNS`）：
      - 腾讯文档 → `tencent-docs` → 导出下载 → 再按类型转换
      - 飞书文档 → `lark-doc`
-     - **会议** → `tencent-meeting-mcp` / `lark-minutes` / `lark-vc`
-       - 先获取会议主题（subject）和与会人列表（attendees）
-       - 构建目录：`知识库/会议纪要/{yymmdd}{主题}/`（`知识库` 取 WS 输出的绝对路径）
-       - 文件名：`generate_meeting_filename()` 返回 `(filename, directory)`
-       - 示例：`260723-吴鸿涛黄志恒-企业平台沟通-纪要.md` → 目录 `260723企业平台沟通/`
+     - **会议** — 飞书妙记/千问录音收**逐字稿**（不收 digest/AI 纪要），腾讯会议/飞书会议收纪要：
+       - 飞书妙记（`feishu.cn/minutes/`）→ `lark-meeting` 的 `lark-cli minutes +detail --minute-tokens <token> --transcript`，逐字稿为必收产物：
+         - digest（summary/todo/chapter/keyword）不拉取——事实源是逐字稿，加工提炼属 ingest 阶段
+         - `--transcript` 产物落 `./minutes/{token}/transcript.txt`（`--output-dir` 可能不生效），移走后删除该临时目录（见「临时产物铁律」）
+         - 主题取 `+detail` 基础信息 `title`；落点 `{$知识库}/会议纪要/{yymmdd}-{主题}-逐字稿.txt`，内联平铺（不建会议子目录）；`{yymmdd}` 为**会议开始日期**（逐字稿首行时间戳），非采集日期
+         - 逐字稿**原样保存**：不截断、不打码、不重排——硬凭证打码属 ingest 阶段（imness `redact.py`，见其 SKILL.md）
+         - 入库三件套同「分类与入库」：category 固定 `会议纪要`（不跑 classify）、source=妙记 URL、source_type=`feishu-minutes`、original_filename=`transcript.txt`
+       - 腾讯会议（`meeting.tencent.com/`）→ `tencent-meeting-mcp`；飞书会议（`feishu.cn/vc/`）→ `lark-vc`
+       - 千问录音（`qianwen.com/chat/`）→ `qianwen-minutes-sync`（本仓库 products/）的 `fetch`——浏览器通道导出官方原文 txt，agent 中立 getter：
+         - 只收逐字稿 txt（`[mm:ss] 发言人N: 文本`，官方导出原样），不收 AI 纪要、不存音频——加工提炼属 ingest 阶段
+         - 命令（在 `qianwen-minutes-sync/scripts/` 下执行）：`python3 -m qianwen_sync.run fetch <会话ID或chat URL> --out /tmp/…`；退出码 0 成功 / 2 登录失效（ego-browser 需登录千问）/ 3 会话不存在 / 4 无导出入口
+         - 批量发现新会话用 `list-new`（Cookie 快照通道，JSONL 输出即推游标），再逐个串行 fetch（单会话 90s 超时，失败不重试）
+         - **项目归属先判定、人确认**：会议来源跨项目，`list-new` 后按 `references/project-routing.md`
+           用 projects-map（标题×关键词）逐条判定，**判定表交用户确认/改判后才拉取入库**；
+           用户指令已明确项目则免确认。无人值守定时拉取：high 自动入库、其余落**待分类池**
+           （`{$默认工作区}/收件箱/待分类/`，status: pending，见同文件；池按来源通用，
+           分拣维度始终是分类目录如 会议纪要/）。入库三件套落**确认项目的工作区**
+           （其 `project_dir` 的 `init_workspace` 输出），不落 agent 当前项目。
+           定时采集家族（multica）见 `references/scheduled-collections.md`
+         - 入库三件套同上：category 固定 `会议纪要`（不跑 classify）、source=chat URL、source_type=`qianwen-audio`、original_filename=导出 txt 文件名；落点 `{$知识库}/会议纪要/{yymmdd}-{主题}-逐字稿.txt`，`{yymmdd}` 取会话创建日期（list-new 的 create_time）
      - 网页 → `baoyu-url-to-markdown`
      - 音视频 → `transcribe`
    - **4d 附件与在线文档提取** — 正文转换（4a/4b）之外并行的第二条产出线，详见下文「附件与在线文档」：
-     检测嵌入附件/外部链接 → 存 `工作台/{正文名去后缀}/` → 逐一按本 SOP 递归处理入库。附件提取不影响正文路由。
+     检测嵌入附件/外部链接 → 存 `{$工作台}/{正文名去后缀}/` → 逐一按本 SOP 递归处理入库。附件提取不影响正文路由。
 
 ### xlsx 转 csv 规则
 
@@ -87,10 +104,10 @@ WS=$(python3 -m scripts.init_workspace "<项目根目录>")
 适用时机：正文文件（.doc/.docx/.ppt/.pptx/.xls/.xlsx/.wps）可能内嵌附件对象或包含指向在线文档的外部链接。
 正文按 4a–4c 转换之外，并行执行本节流程。
 
-1. **检测与提取** — 对**原始文件**运行（`工作台` 取 WS 输出的绝对路径）：
+1. **检测与提取** — 对**原始文件**运行：
 
    ```bash
-   python3 -m scripts.extract_attachments "<原始文件>" --outdir "<工作台/{正文名去后缀}>"
+   python3 -m scripts.extract_attachments "<原始文件>" --outdir "{$工作台}/{正文名去后缀}"
    ```
 
    - 旧格式（.doc/.ppt/.xls/.wps）：`olefile` 直接解析 OLE `ObjectPool/{id}/package` 流。
@@ -119,7 +136,7 @@ WS=$(python3 -m scripts.init_workspace "<项目根目录>")
    腾讯文档 → `tencent-docs` 导出；飞书 → `lark-doc`；网页 → `baoyu-url-to-markdown`；
    需要登录/无法下载的链接记录到 `.logs/` 并在最终汇报中列出，不静默跳过
 4. **递归处理** — 对附件目录里的每个文件**复用本 SOP 主流程**（步骤 4 起）：
-   复杂度判定 → simple/complex 路由 → md/csv → 分类 → 入 `知识库/{category}/` →
+   复杂度判定 → simple/complex 路由 → md/csv → 分类 → 入 `{$知识库}/{category}/` →
    记录 front matter + index + log（与正文同规；`source` 注明来源正文文件名）
 5. **递归控制** — 附件里再嵌附件时同上递归，但最多 2 层；全程按 md5 去重，
    已处理过的附件不重复入库，避免死循环
@@ -130,10 +147,10 @@ WS=$(python3 -m scripts.init_workspace "<项目根目录>")
 
 > 转换产物的目录结构**必须与收件箱源文件结构对称**，附件移动后引用不断裂。
 
-- **主文档 md 与收件箱源文件平级**：`收件箱/客户提供/三场景/工单助理V0.9.0.doc` →
-  `知识库/{category}/工单助理V0.9.0.md`（不额外套目录）。
+- **主文档 md 与收件箱源文件平级**：`{$收件箱}/客户提供/三场景/工单助理V0.9.0.doc` →
+  `{$知识库}/{category}/工单助理V0.9.0.md`（不额外套目录）。
 - **附件 md 进同名子目录**：附件 md 与源附件落在 `<主文档名>/` 同名子目录里——
-  `知识库/{category}/工单助理V0.9.0/附件A.md`，与收件箱 `<源文件去后缀>/` 子目录一一对应。
+  `{$知识库}/{category}/工单助理V0.9.0/附件A.md`，与 `{$收件箱}/<源文件去后缀>/` 子目录一一对应。
 - **media 按「每个 md 同名目录」分层**：`{md 名}.md` + `{md 名}/image1.png`（见下「media 规则」）。
 - **附件移动后同步改 3 处**（附件 md 从平铺改为同名子目录等结构调整时）：
   ① md 内 media 引用（`media/附件名/` → `../media/子目录/附件名/`，按新相对位置重算）；
@@ -145,7 +162,7 @@ WS=$(python3 -m scripts.init_workspace "<项目根目录>")
 - **media 是转换产物的图片库**，不是源文档自带附件——docx 内嵌图片（`word/media/`）经 pandoc 提取后独立成文件，
   md 才能 `<img src>` 引用。**图片只在转换阶段从源文档提取**：附件提取阶段（`extract_attachments`）
   不落任何图片（见「附件与在线文档」提取范围）。
-- **不落独立 `media/` 目录**，而是**每个 md 同名目录**：`知识库/{category}/{主文档名}.md` + `{主文档名}/image1.png`；
+- **不落独立 `media/` 目录**，而是**每个 md 同名目录**：`{$知识库}/{category}/{主文档名}.md` + `{主文档名}/image1.png`；
   附件同理 `子目录/{附件名}.md` + `{附件名}/imageN.png`。
 - **装饰性小文件丢弃**：emf 旧格式矢量图（有 png 副本时冗余）、<5KB 小图标，转换时即丢弃。
 - **引用路径同步**：media 重构后，md 内 `media/主文档名/` → `主文档名/`，
@@ -157,11 +174,11 @@ WS=$(python3 -m scripts.init_workspace "<项目根目录>")
 
 1. **提炼范围**：读**所有 md**（正文与附件），提取 `https?://` URL（排除 `mailto:`），**去重**。
 2. **过滤（仅 docness 可识别）**：只保留 docness 能拉取的来源——
-   腾讯文档 `docs.qq.com/sheet|doc|slide|docx`、飞书 `feishu.cn/docx|minutes|vc`、
+   腾讯文档 `docs.qq.com/sheet|doc|slide|docx`、飞书 `feishu.cn/docx|wiki|minutes|vc`、
    Lark `larksuite.com`、腾讯会议 `meeting.tencent.com`。
    **内网 IP、占位符、外部工具站（oschina/mirrors 等）不记录。**
 3. **落位与命名**：生成 `原文.URL.md`——**与收件箱源文件同名**（源文件 `家集客...工单助理V0.9.0.doc`
-   → `家集客...工单助理V0.9.0.URL.md`），**存收件箱** `收件箱/{原文目录}/`；知识库为入库副本
+   → `家集客...工单助理V0.9.0.URL.md`），**存收件箱** `{$收件箱}/{原文目录}/`；知识库为入库副本
    （与源文件 md 同目录）。
 4. **三类分录**（三节分开记录，不可混在一起）：
    ① **提取到的 URL**（仅 docness 可识别，附文中引用次数）；
@@ -187,12 +204,12 @@ WS=$(python3 -m scripts.init_workspace "<项目根目录>")
 
 ## 分类与入库
 
-1. **分类** — 运行 `python3 -m scripts.classify <Markdown文件路径>`，拿到分类 prompt 后自行调用 LLM，再用 `parse_classify_response()` 解析返回 JSON 获得 category（见 `references/categories.md` 的分类规则）。
-2. **入库** — 移动到 `知识库/{category}/`（`知识库` 取 WS 输出的绝对路径），生成规范文件名（这是必须完成的一步，不省略）；
+1. **分类** — 运行 `python3 -m scripts.classify <Markdown文件路径>`，拿到分类 prompt 后自行调用 LLM，再用 `parse_classify_response()` 解析返回 JSON 获得 category（见 `references/categories.md` 的分类规则）。飞书妙记/千问录音逐字稿**不走 classify**，category 固定 `会议纪要`（见 4c）。
+2. **入库** — 移动到 `{$知识库}/{category}/`，生成规范文件名（这是必须完成的一步，不省略）；
    media 图片随 md 进入同名子目录。
 3. **记录** — 三项缺一不可，全部完成才算 collect 结束：
    - 调用 `record_collect(filepath, source, source_type, category, original_filename)` 写入 front matter（schema 见 `references/front-matter-schema.md`）
-   - 调用 `index.add_entry(...)` 登记 `知识库/docness-index.yml`（`index_path` 传 WS 输出的 `知识库/docness-index.yml`）
+   - 调用 `index.add_entry(...)` 登记 `{$知识库}/docness-index.yml`（`index_path` 传该绝对路径）
    - 调用 `record_log(log_dir, action, detail)` 追加 `.logs/YYYY-MM-DD-docness.md` 条目（`log_dir` 取 WS 输出的 `logs`）
 4. **URL 提炼 + 闭环核对** — 全部入库后执行「URL 提炼」与「主文档闭环核对清单」。
 
