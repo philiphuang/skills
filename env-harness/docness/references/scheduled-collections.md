@@ -11,8 +11,8 @@
 |------|-----------|------|--------|---------|------|
 | 飞书采集 | `e94fa6e4` | 工作日 8-18 多轮 | 飞书会话消息 + 妙记链接 | imness 采集/ingest；妙记→docness 4c | 运行中 |
 | 笔记同步（微信文档收藏） | notehelper-sync（id 见 multica） | */2h | 微信收藏文章 | 落 `p/kb/收件箱/笔记同步助手/`，kb ingest 管线消化 | 运行中 |
-| 千问拉取 | `ca967103` | 工作日 10:30 / 17:30 | 千问录音逐字稿 txt | runbook：agenticOps `projects/multica_ops/runbooks/千问拉取.md`（=description 双写）；落库走 docness 4c + 路由 | **运行中**（agent `3479ad7a` → Mac runtime `ca1fa96f`，ego-browser 仅 Mac 可跑；Mac daemon LaunchAgent `com.multica.daemon` 常驻，2026-10-17 注册） |
-| 腾讯会议拉取 | `21b9eca7` | 工作日 11:30 / 16:30 | 智能纪要 | runbook：agenticOps `projects/multica_ops/runbooks/腾讯会议采集.md`；落库走 docness 4c + 路由 | **运行中**（agent `f754fd3e` → oyun runtime `6550fa62`，agent 内联 tencent-meeting MCP + Token；projects-map 为 oyun 侧同步副本，2026-10-17 注册） |
+| 千问拉取 | `ca967103` | 工作日 10:30 / 17:30 | 千问录音逐字稿 txt | runbook：agenticOps `projects/multica_ops/runbooks/千问拉取.md`（=description 双写）；落库走 docness 4c + 路由 | **运行中**（agent `3479ad7a` → oyun runtime `6550fa62`，playwright + chromium headless，venv `/opt/prjs/qianwen-venv`，2026-10-17 注册，2026-10-18 迁 oyun #217） |
+| 腾讯会议拉取 | `21b9eca7` | 工作日 11:30 / 16:30 | 逐字稿 | runbook：agenticOps `projects/multica_ops/runbooks/腾讯会议采集.md`；落库走 docness 4c + 路由 | **运行中**（agent `f754fd3e` → oyun runtime `6550fa62`，agent 内联 tencent-meeting MCP + Token；projects-map 为 oyun 侧同步副本，2026-10-17 注册） |
 | 待分类池分拣台 | `78e1a046` | 工作日 9–19 点每小时 :23 | —（消费上面三条的池产物） | runbook：agenticOps `projects/multica_ops/runbooks/分拣台.md`；向飞书「分拣台」群发单，解析用户回复执行 docness 归位三件套 | **运行中**（agent `077cd074` → oyun runtime `6550fa62`，lark-cli bot 发消息；2026-10-17 注册） |
 
 补充事实：ZCode 客户端另有一条旧「飞书会话采集」自动化（prompt 存档
@@ -34,6 +34,5 @@
 - runbook 双写约定：改 runbook 后必须 `multica --profile oyun autopilot update <id> --description "$(cat runbook.md)"`
 - 两条新任务已登记 `agenticOps/docs/调度清单.md`（唯一事实源）与
   `agenticOps/projects/networking_ops/sched-audit.sh`（check_age 阈值 108000s≈30h，工作日节奏周末断档自然容忍）
-- 千问拉取执行机是 Mac：ego-browser 浏览器通道仅 macOS 可用；Mac multica daemon 由
-  `~/Library/LaunchAgents/com.multica.daemon.plist` 常驻（KeepAlive + RunAtLoad）
+- 千问拉取执行机是 oyun：playwright + chromium headless（#217 已从 Mac ego-browser 迁至 oyun）；venv `/opt/prjs/qianwen-venv`
 - 腾讯会议拉取执行机是 oyun：HTTP MCP 无浏览器依赖；Token 内联在 agent 配置（secret 不落 runbook）

@@ -1,0 +1,67 @@
+# 通用项目映射表 / projects-map（示例模板）
+#
+# 正式配置保存在用户命名空间 ~/.config/project-daimon/projects-map.yaml（project-daimon
+# 命名空间的通用「项目 → 目录/关键词」映射，跨工具共享；qianwen-minutes-sync 管线是消费方之一）。
+# 由 scripts/gen_projects_map.py 生成与合并，本文件仅作 --init-from 种子/格式示例。
+# 管线按 keywords 匹配纪要标题 → 命中条目归档到 archive_dir；无命中 → 待分拣收件箱并提醒。
+# schema v1 已由 #108 锁定（归档/命名/front-matter/schema 规范见 references/archive-spec.md）；
+# 维护方式：重跑 gen_projects_map 或手工增删条目，映射是唯一分类事实源。
+#
+# 匹配规则（v1）：
+#   - 仅匹配纪要标题（是否引入正文匹配由 #109 决策票定）
+#   - 按本文件顺序取首个命中条目
+#   - archive_dir 为空的命中条目 → 走待分拣（占位：项目归属未定，确认后补路径）
+
+version: 1
+
+# 不想被 gen_projects_map 自动收录的目录名（工具目录/日志目录等），收录后可手工挪进来
+exclude:
+  - SOP
+  - chat_logs
+
+defaults:
+  # 待分拣收件箱：管线运行现场在 2606国际公司MCloud workspace（#103 载体已确认）
+  inbox_dir: /opt/prjs/2606国际公司MCloud/收件箱/待分类
+  match: title
+
+projects:
+  - id: kechuang-platform
+    name: 科创平台
+    project_dir: /opt/prjs/2607科创平台
+    archive_dir: /opt/prjs/2607科创平台/归档/纪要
+    keywords: [科创平台, 架构评审, 人机协同, 需求调研, AI赋能, 智能体融合]
+    # 近 30 天 5 条纪要。2602_guangdong_kechuang/kechuang_pingtai 是早期阶段产物，现归 2607 项目。
+
+  - id: gongdan-agent
+    name: 工单智能体（客响综调）
+    project_dir: /opt/prjs/2602_guangdong_kechuang
+    archive_dir: /opt/prjs/2602_guangdong_kechuang/客响综调需求-工单分类/纪要
+    keywords: [工单智能体, 工单分类, 客响综调]
+    # 待确认：2602 下已有「客响综调需求-工单分类」子目录，按此映射；若实际归属 2607客响装维 请改。
+
+  - id: ai-hub
+    name: AI Hub（计费与代理商）
+    project_dir: /opt/prjs/2606CMI-APP-MRK
+    archive_dir: /opt/prjs/2606CMI-APP-MRK/纪要
+    keywords: [AI Hub, 计费, 代理商]
+    # 待确认：MRK=企业级 AI 应用分发平台，计费/代理商模式与「AI Hub」吻合，按此映射。
+
+  - id: zhuanli-preshen
+    name: 专利预审与专家评审系统
+    project_dir: /opt/prjs/2602_guangdong_kechuang
+    archive_dir: /opt/prjs/2602_guangdong_kechuang/纪要
+    keywords: [专利, 预审, 专家评审]
+    # 待确认：专利预审按广东科创承担方映射。
+
+  - id: performance-mgmt
+    name: 绩效管理系统
+    project_dir: /opt/prjs/2603绩效考核
+    archive_dir: /opt/prjs/2603绩效考核/纪要
+    keywords: [绩效, 考核]
+
+  - id: security-spec
+    name: 安全规范对接
+    project_dir: null
+    archive_dir: null
+    keywords: [安全规范]
+    # 「项目初期安全规范对接」标题指代不明，暂走待分拣；确认归属后补齐两字段。
