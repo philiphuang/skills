@@ -12,6 +12,7 @@ import json
 import os
 import urllib.error
 import urllib.request
+import uuid
 from pathlib import Path
 
 BASE = "https://chat2-api.qianwen.com"
@@ -21,10 +22,10 @@ AUDIO_TITLE_PREFIXES = ("录音纪要：", "总结录音内容")  # 实测仅有
 PAGE_SIZE = 50
 MAX_PAGES = 20
 # 公共查询参数实测必需；ut 为设备指纹 UUID（缺失即 400 {"code":10001,"msg":"ut"}），
-# 来源=首次导出 Cookie 快照的浏览器设备。
+# 实测随机值同样可用（2026-10-20），故每进程随机生成，不携带真实设备指纹。
 COMMON_PARAMS = (
     "biz_id=ai_qwen&chat_client=h5&device=pc&fr=h5&pr=qwen"
-    "&ut=7447be63-5bc3-9a42-ea83-34d35b198deb&la=zh-CN&tz=Asia%2FSingapore"
+    f"&ut={uuid.uuid4()}&la=zh-CN&tz=Asia%2FSingapore"
     "&wv=4.9.1&tq=SD&ve=4.9.1"
 )
 

@@ -8,10 +8,10 @@
 
 | 项 | 值 |
 |----|----|
-| 载体 | multica autopilot `21b9eca7-69ff-4f44-90ee-1f1e7244918c` |
+| 载体 | multica autopilot `21b9eca7` |
 | 标题 | 工作日拉取腾讯会议逐字稿 |
 | 节奏 | 工作日每日 2 轮：11:30 / 16:30（错开千问 10:30/17:30 与飞书采集整点体系） |
-| 执行机 | oyun（Oracle A1）；agent `f754fd3e`（腾讯会议采集） |
+| 执行机 | oyun 执行机（agent 详情见私仓调度清单） |
 | 前置 | `TENCENT_MEETING_TOKEN` 在 `~/.secrets/tencent-meeting.env`；getter 在 `/p/skills-factory/products/tencent-meeting-transcript-sync/scripts/` |
 | 水位 | `/p/2606国际公司MCloud/.scratch/tencent-meeting-transcript-sync/state.json`（`last_run` + `meeting_ids[]` + `processed_record_file_ids[]`，各 500 条上限） |
 | sched-audit 标签 | `multica:腾讯逐字稿(工作日 11:30/16:30)`（阈值 30h） |

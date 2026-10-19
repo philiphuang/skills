@@ -10,7 +10,7 @@
 
 | 项 | 值 |
 |----|----|
-| 载体 | multica autopilot（与 飞书采集 `e94fa6e4`、notehelper-sync 同体系） |
+| 载体 | multica autopilot（与飞书采集、notehelper-sync 同体系） |
 | 节奏 | 工作日每日 2 轮：10:30 / 17:30（半点，错开飞书采集整点体系） |
 | 工作日判断 | timor.tech API（见 prompt 步骤 0），fallback cron 周一至周五 |
 | 运行现场 | 只读 skills-factory scripts/；产物落各项目工作区与待分类池 |
