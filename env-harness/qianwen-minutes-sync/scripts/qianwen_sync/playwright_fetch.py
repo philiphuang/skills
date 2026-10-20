@@ -79,12 +79,12 @@ async def fetch_transcript(conversation_id: str, out_path: str, cookie_raw: str,
 
             # 侧边栏点击目标会话（playwright locator 点击 — page.evaluate 不触发 SPA 路由）
             try:
-                # 优先按 conversation_id 匹配 href
-                href_loc = page.locator(f'a[href*="{conversation_id}"]')
-                if await href_loc.count() > 0:
-                    await href_loc.first.click()
+                # 侧边栏为 DIV 渲染、无锚点；会话 ID 挂在 data-session-id 上（2026-10-20 实测）
+                sid_loc = page.locator(f'[data-session-id="{conversation_id}"]')
+                if await sid_loc.count() > 0:
+                    await sid_loc.first.click()
                 else:
-                    # fallback：点击第一个录音纪要会话
+                    # fallback：点击第一个录音纪要会话——仅当目标恰为最新一条时成立，靠下方 URL 校验兜底
                     await page.locator("text=录音纪要：").first.click()
             except Exception as e:
                 return {"ok": False, "code": EXIT_NOT_FOUND,
@@ -191,6 +191,12 @@ async def fetch_transcript(conversation_id: str, out_path: str, cookie_raw: str,
             fname = download.suggested_filename or ""
             title = fname.replace("原文_", "").rsplit(".", 1)[0] if fname else ""
             await download.save_as(out_path)
+            # 验证导出内容为 txt 转写：格式下拉可能未生效而导出成 PDF（2026-10-20 实测），
+            # 此时必须显式失败让游标回滚，否则 PDF 会被当逐字稿默默入库
+            with open(out_path, "rb") as f:
+                if f.read(5).startswith(b"%PDF"):
+                    return {"ok": False, "code": EXIT_NO_EXPORT,
+                            "error": "导出内容是 PDF 而非 txt（格式切换未生效），需重试或人工检查"}
             return {"ok": True, "path": out_path, "title": title.strip()}
 
         except Exception as e:
