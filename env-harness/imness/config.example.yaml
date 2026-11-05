@@ -18,7 +18,7 @@ channels:
     - name: work                    # 实例标识，供脚本/日志/index 引用（必填，同渠道内唯一）
       lark_profile: work            # lark-cli profile 名（必填，认证隔离）
       my_name: {YOUR_NAME}          # 我的飞书显示名（必填）
-      my_id: {YOUR_OU_ID}           # 我的 ou_id（必填，例: ou_2dcb999e...）
+      my_id: {YOUR_OU_ID}           # 我的 ou_id（必填，例: ou_xxxxxxxx）
       my_aliases: [{YOUR_NAME}, {YOUR_ALIAS}]  # 我的简称（必填，≥1 个）
                                      #   双用：① report auto_triage 判 is_mine
                                      #         ② collect-chats 单聊排除自己
