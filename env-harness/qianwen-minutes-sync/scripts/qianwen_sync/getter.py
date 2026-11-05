@@ -5,7 +5,7 @@
 
 fetch 浏览器通道：
 - Mac：ego-browser（保留，向后兼容）
-- Linux/linux-runner：playwright + chromium 无头（#217 迁移）
+- Linux：playwright + chromium 无头（#217 迁移）
 """
 from __future__ import annotations
 
@@ -27,7 +27,7 @@ EXIT_NOT_FOUND = 3
 EXIT_NO_EXPORT = 4
 
 CHAT_URL_RE = re.compile(r"qianwen\.com/chat/([0-9a-fA-F]{16,})")
-DEFAULT_STATE = Path("~/projects/示例项目A/.scratch/qianwen-minutes-sync/state.json")
+DEFAULT_STATE = Path.home() / ".local" / "state" / "qianwen-minutes-sync" / "state.json"
 
 
 def parse_conversation_ref(ref: str) -> str:
@@ -171,7 +171,7 @@ try { await task.finish({ keep: [] }); } catch (e) {}
 
 def _run_browser(conversation_id: str, out_path: Path, timeout_s: int,
                  cookie: str = "") -> dict:
-    """浏览器通道分发：playwright 优先（Linux/linux-runner），ego-browser 兜底（Mac）。"""
+    """浏览器通道分发：playwright 优先（Linux），ego-browser 兜底（Mac）。"""
     if _has_playwright():
         from .playwright_fetch import run_fetch
         return run_fetch(conversation_id, out_path, cookie, timeout_s)

@@ -7,15 +7,14 @@ description: 千问录音逐字稿纯获取工具（v2 getter，agent 中立）�
 
 千问录音的**逐字稿获取**工具集。v2 主路径 = 纯 getter（`list-new` + `fetch`，规范 `references/getter-spec.md`，地图 #202 / 定形 #205 / 实现 #206）：
 只负责列会话和导出官方原文 txt，不做存储/分类/调度；编排消费方是 docness collect（其 `sops/collect.md` 4c 千问分支），也可被任何 agent 直接手跑。
-定时编排 = **multica autopilot**（与飞书采集、笔记同步/微信收藏拉取同体系，2026-10-17 裁定），
-prompt 与注册参数见 `references/automation-multica.md`。
+定时编排由内部调度系统（multica autopilot）承担，prompt 与注册参数属内部运维配置，不随本仓发布。
 
 ## v2 getter：list-new / fetch
 
 ### 前置
 
 - **list-new 通道**：Cookie 快照（`~/.config/project-daimon/qianwen-cookie.txt`，或 `--cookie` / 环境变量 `QIANWEN_COOKIE`）——会话列表 API 只验 Cookie
-- **fetch 通道**：浏览器导出（转写正文在 AWSC 验签墙后，浏览器是唯一通道，#203 定论；txt 导出为前端本地 Blob，非网络接口）。自动分发：**playwright + chromium headless 优先**（Linux/linux-runner，#217 迁移；Cookie 从快照注入），未装 playwright 的 Mac 回退 ego-browser（人工登录态）
+- **fetch 通道**：浏览器导出（转写正文在 AWSC 验签墙后，浏览器是唯一通道，#203 定论；txt 导出为前端本地 Blob，非网络接口）。自动分发：**playwright + chromium headless 优先**（Linux 执行机，#217 迁移；Cookie 从快照注入），未装 playwright 的 Mac 回退 ego-browser（人工登录态）
 
 ### 调用（在 `scripts/` 目录下）
 
@@ -63,7 +62,7 @@ python3 products/qianwen-minutes-sync/scripts/gen_projects_map.py \
 
 满足其一即视为项目目录：
 
-- 目录名以两位以上数字开头（编号项目，如 `示例项目B`、`示例平台E`）
+- 目录名以两位以上数字开头（编号项目，如 `9901示例项目`、`99 05 示例平台`）
 - 含工作台类标记（`工作台/收件箱/发件箱/知识库/归档/工作法` 之一，或 `AGENTS.md`/`CLAUDE.md`）
 
 ### 合并语义（重跑安全）

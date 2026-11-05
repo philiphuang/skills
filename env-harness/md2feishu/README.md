@@ -2,7 +2,7 @@
 
 把本地 markdown 变更**增量**同步到飞书 wiki 文档，保留批注、白板、图片。
 
-飞书评审双向闭环的**发布半边**（本地 → 飞书）。获取方向（飞书 → 本地）由 [`/fei2md`](https://github.com/philiphuang/skills-factory/tree/main/products/fei2md) 负责。
+飞书评审双向闭环的**发布半边**（本地 → 飞书）。获取方向（飞书 → 本地）由姊妹 skill `/fei2md` 负责（私有仓，不随本仓发布）。
 
 ## 它解决什么
 

@@ -17,7 +17,7 @@ from .report import build_report, cookie_fail_report
 from .runlog import log_decision, log_sync
 from .state import load as state_load, mark_done, save as state_save, select_increment
 
-DEFAULT_WORKSPACE = "~/projects/示例项目A"
+DEFAULT_WORKSPACE = str(Path.home() / "qianwen-workspace")
 DEFAULT_MAP = Path.home() / ".config" / "project-daimon" / "projects-map.yaml"
 
 

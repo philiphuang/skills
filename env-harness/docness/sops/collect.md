@@ -76,7 +76,7 @@ WS=$(python3 -m scripts.init_workspace "<项目根目录>")
            （`{$默认工作区}/收件箱/待分类/`，status: pending，见同文件；池按来源通用，
            分拣维度始终是分类目录如 会议纪要/）。入库三件套落**确认项目的工作区**
            （其 `project_dir` 的 `init_workspace` 输出），不落 agent 当前项目。
-           定时采集家族（multica）见 `references/scheduled-collections.md`
+           定时采集家族的调度细节属内部运维，不随本仓发布
          - 入库三件套同上：category 固定 `会议纪要`（不跑 classify）、source=chat URL、source_type=`qianwen-audio`、original_filename=导出 txt 文件名；落点 `{$知识库}/会议纪要/{yymmdd}-{主题}-逐字稿.txt`，`{yymmdd}` 取会话创建日期（list-new 的 create_time）
      - 网页 → `baoyu-url-to-markdown`
      - 音视频 → `transcribe`

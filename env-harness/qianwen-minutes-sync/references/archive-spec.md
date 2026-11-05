@@ -7,9 +7,9 @@
 
 ## 1. 目录体系
 
-- **中转目录**：`~/projects/示例项目A/.scratch/qianwen-minutes-sync/`
+- **中转目录**：`{$项目根}/.scratch/qianwen-minutes-sync/`
   纯机器临时区，分类完成后即清，人工无需关注。
-- **待分拣收件箱**：`~/projects/示例项目A/收件箱/qianwen-待分拣`
+- **待分拣收件箱**：`{$项目根}/收件箱/qianwen-待分拣`
   模糊归属纪要的人工入口；与 projects-map `defaults.inbox_dir` 保持一致。
 - **归档目录（项目内，双形态）**：项目内有 `归档/` → `归档/纪要/`；否则 → `纪要/`。
   显式写在 projects-map 条目 `archive_dir`，消费方不再推导。

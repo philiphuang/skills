@@ -1,4 +1,4 @@
-# 通用项目映射表 / projects-map（示例模板）
+# 通用项目映射表 / projects-map（示例模板——所有项目均为虚构演示数据）
 #
 # 正式配置保存在用户命名空间 ~/.config/project-daimon/projects-map.yaml（project-daimon
 # 命名空间的通用「项目 → 目录/关键词」映射，跨工具共享；qianwen-minutes-sync 管线是消费方之一）。
@@ -20,48 +20,28 @@ exclude:
   - chat_logs
 
 defaults:
-  # 待分拣收件箱：管线运行现场在 示例项目A workspace（#103 载体已确认）
-  inbox_dir: ~/projects/示例项目A/收件箱/待分类
+  # 待分拣收件箱：管线运行现场所在 workspace（部署环境自定）
+  inbox_dir: ~/projects/收件箱/待分类
   match: title
 
 projects:
   - id: demo-platform
-    name: 示例项目B
-    project_dir: ~/projects/示例项目B
-    archive_dir: ~/projects/示例项目B/归档/纪要
-    keywords: [示例项目B, 架构评审, 人机协同, 需求调研, AI赋能, 智能体融合]
-    # 近 30 天 5 条纪要。demo-project-c/demo_pingtai 是早期阶段产物，现归 9907 项目。
+    name: 示例平台
+    project_dir: ~/projects/9901示例平台
+    archive_dir: ~/projects/9901示例平台/归档/纪要
+    keywords: [示例平台, 架构评审, 需求调研, 智能体融合]
+    # 完整条目示例：编号目录 + 归档子目录 + 多关键词。
 
-  - id: gongdan-agent
-    name: 工单助手（工单调度示例）
-    project_dir: ~/projects/demo-project-c
-    archive_dir: ~/projects/demo-project-c/工单调度示例需求-工单分类/纪要
-    keywords: [工单助手, 工单分类, 工单调度示例]
-    # 待确认：9902 下已有「工单调度示例需求-工单分类」子目录，按此映射；若实际归属 示例项目B运维 请改。
+  - id: demo-agent
+    name: 工单助手（示例）
+    project_dir: ~/projects/9902示例助手
+    archive_dir: ~/projects/9902示例助手/工单分类/纪要
+    keywords: [工单助手, 工单分类]
+    # 同一 workspace 下子目录作归档目标的示例。
 
-  - id: ai-hub
-    name: AI 门户（计费与代理商）
-    project_dir: ~/projects/demo-project-mrk
-    archive_dir: ~/projects/demo-project-mrk/纪要
-    keywords: [AI 门户, 计费, 代理商]
-    # 待确认：MRK=企业级 AI 应用分发平台，计费/代理商模式与「AI 门户」吻合，按此映射。
-
-  - id: zhuanli-preshen
-    name: 专利评审示例与专家评审系统
-    project_dir: ~/projects/demo-project-c
-    archive_dir: ~/projects/demo-project-c/纪要
-    keywords: [专利, 预审, 专家评审]
-    # 待确认：专利评审示例按示例科创承担方映射。
-
-  - id: performance-mgmt
-    name: 绩效系统示例
-    project_dir: ~/projects/示例项目D
-    archive_dir: ~/projects/示例项目D/纪要
-    keywords: [绩效, 考核]
-
-  - id: security-spec
-    name: 安全规范对接
+  - id: demo-pending
+    name: 待定项目（示例）
     project_dir: null
     archive_dir: null
-    keywords: [安全规范]
-    # 「项目初期安全规范对接」标题指代不明，暂走待分拣；确认归属后补齐两字段。
+    keywords: [待定]
+    # archive_dir/project_dir 为空 → 命中也走待分拣；确认归属后补齐两字段。

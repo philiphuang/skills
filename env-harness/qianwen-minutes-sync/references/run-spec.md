@@ -1,7 +1,7 @@
 # 定时运行与状态管理（#110 锁定，2026-10-03）
 
 > ⚠️ **遗留（v1）**：本规范服务于 v1 管线（run/finalize）。主路径已由 v2 getter（`list-new`/`fetch`，见 `getter-spec.md`，#202/#205/#206）取代——v2 零调度（编排属调用方），agent 中立；本文件仅在运行 v1 遗留命令时有效。
-> 定时编排已另定（2026-10-17）：multica autopilot，见 `references/automation-multica.md`
+> 定时编排已另定（2026-10-17）：multica autopilot（内部运维，配置不随本仓发布）
 > （取代本文 §1「ZCode 客户端并列新建」及 #110 对应决策）。
 
 本文件是 qianwen-minutes-sync 管线调度与状态管理的规范唯一事实源，#111 实现按此消费。
@@ -12,7 +12,7 @@
 ## 1. 并合形态：并列新建
 
 - 独立新建一条 ZCode 客户端自动化，**不并入** imness 采集 prompt——故障域隔离（任一挂掉不影响另一条）、独立开关、可错峰
-- 运行现场：示例项目A 项目 workspace（与 imness 采集同现场，2026-08-22 用户已定）
+- 运行现场：目标项目 workspace（具体项目属部署环境配置，与 imness 采集同现场，2026-08-22 用户已定）
 - prompt 存档：`.scratch/qianwen-minutes-sync/references/qianwen-sync-automation-prompt.md`（#111 落地）
 - 编排（prompt）与核心（脚本）分离；脚本可独立手跑
 

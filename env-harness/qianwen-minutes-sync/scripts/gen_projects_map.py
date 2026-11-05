@@ -24,7 +24,7 @@ DEFAULT_OUT = Path.home() / ".config" / "project-daimon" / "projects-map.yaml"
 
 # 项目识别信号（满足其一即视为项目目录）
 WORKSPACE_MARKERS = {"工作台", "收件箱", "发件箱", "知识库", "归档", "工作法", "AGENTS.md", "CLAUDE.md"}
-NUMBERED_PREFIX = re.compile(r"^\d{2}")  # 目录名以两位以上数字开头（如 示例项目B、示例平台E）
+NUMBERED_PREFIX = re.compile(r"^\d{2}")  # 目录名以两位以上数字开头（如 9901示例项目、99 05 示例平台）
 
 # 归档子目录推导：项目内已有「归档」则归 归档/纪要，否则 纪要/
 ARCHIVE_MARKER = "归档"

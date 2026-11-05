@@ -96,9 +96,9 @@ lark-cli docs +update --doc "<url>" --command block_insert_after \
 
 | 实验 | 策略 | 文档 | 结果 |
 |------|------|------|------|
-| v1 | markdown `>` str_replace 全段 | https://example.feishu.cn/docx/DocTokenExample1 | ❌ block ID 变，UI 不可见 |
-| v2 | XML 模式 str_replace 全段 | https://example.feishu.cn/docx/DocTokenExample2 | ❌ block ID 保留但偏移失效，UI 不可见 |
-| v3 | 只删前后，不动批注文字 | https://example.feishu.cn/docx/DocTokenExample3 | ✅ block ID 保留，偏移不变，UI 可见 |
+| v1 | markdown `>` str_replace 全段 | 示例实验文档 1（docx） | ❌ block ID 变，UI 不可见 |
+| v2 | XML 模式 str_replace 全段 | 示例实验文档 2（docx） | ❌ block ID 保留但偏移失效，UI 不可见 |
+| v3 | 只删前后，不动批注文字 | 示例实验文档 3（docx） | ✅ block ID 保留，偏移不变，UI 可见 |
 
 ## 建议的工作流约定
 

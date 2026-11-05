@@ -15,7 +15,7 @@ v1 管线（run/finalize，归档/分类/调度）转遗留，规范仍见 `arch
 - **通道**：`chat2-api.qianwen.com` 会话列表 API，**Cookie 快照**鉴权（该域只验 Cookie，#203 实测）；
   Cookie 优先级 `--cookie` > 环境变量 `QIANWEN_COOKIE` > 快照文件（默认 `~/.config/project-daimon/qianwen-cookie.txt`）
 - **输出**：JSONL，每行 `{id, title, create_time, updated_at}`；**输出即推游标**——打印完成即写 state.json，无确认步骤
-- **游标**：`--state` 指定路径（默认 `~/projects/示例项目A/.scratch/qianwen-minutes-sync/state.json`，与 v1 共用）；
+- **游标**：`--state` 指定路径（默认 `~/.local/state/qianwen-minutes-sync/state.json`，与 v1 共用）；
   判定增量复用 state.py：不在游标或 `updated_at` 变化
 - **`--reset`**：忽略游标吐全量（历史回填入口），随后照常写游标
   （全量回填的组合用法：`list-new --reset` 列出全部 → 串行逐个 `fetch`，一次浏览器会话一个文件）

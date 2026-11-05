@@ -154,8 +154,8 @@ Push 前必须移除:
 
 ```yaml
 ---
-feishu-doc: DocTokenExample      # wiki token（必填）
-feishu-title: "示例营销平台需求文档"            # 推荐
+feishu-doc: <wiki-token>                         # wiki token（必填）
+feishu-title: "示例需求文档"                      # 推荐
 feishu-url: https://xxx.feishu.cn/wiki/...    # 推荐
 sync:                                         # md2feishu 读写
   last_commit: abc123def456                   # 上次同步时的 git commit（diff 基准）

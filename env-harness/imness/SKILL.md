@@ -105,7 +105,7 @@ imness **不自建 ingest 逻辑**。采集后，按以下步骤触发 ingest：
 **步骤 1 — 检测需要 ingest 的 raw 文件**：
 ```bash
 # 从项目根执行（路径相对库根 kb_root）；{$知识库} 按项目说明文件
-# `## Docness 工作目录` 声明解析（如 示例项目A 为 raw/）
+# `## Docness 工作目录` 声明解析（项目可声明子目录，如 raw/）
 cd /path/to/project
 for f in {kb_root}/raw/transcripts/*.md {kb_root}/raw/meetings/*.md "{$知识库}/会议纪要/"*.txt; do
   result=$(bash .claude/skills/llm-wiki/scripts/cache.sh check "$f" 2>&1 | grep -m1 '^HIT\|^MISS')

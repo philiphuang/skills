@@ -1,2 +1,7 @@
 .DS_Store
 knowledge/
+# 测试与 eval 代码不进公开库
+**/test_*.py
+**/*_test.py
+**/tests/
+**/evals/
