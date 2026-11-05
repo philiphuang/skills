@@ -7,9 +7,9 @@ config schema（#22 冻结）::
       feishu:
         - name: work              # 实例标识（同渠道内唯一，必填）
           lark_profile: work      # lark-cli profile 名（认证隔离，必填）
-          my_name: 王强         # 我的显示名（必填）
+          my_name: 张三           # 我的显示名（必填）
           my_id: ou_xxx           # 我的 ou_id（必填）
-          my_aliases: [王强, 小强, HZ]   # 我的简称（必填，≥1）
+          my_aliases: [张三, 三, ZS]     # 我的简称（必填，≥1）
           project_tags: [agent]   # 项目标签（必填，≥1，= 原 feed_groups）
       wechat:
         - name: personal          # 占位，采集未实现

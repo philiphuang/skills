@@ -4,7 +4,7 @@
 迁移自 chat_logs/scripts/chat_tools.py，适配 imness：
 - 去掉写死的 FEED_GROUP_ID（由 shell 层读 config.yaml 动态获取）
 - cmd_normalize 集成 redact（写 raw 前打码）
-- cmd_find_name 的「排除自己」逻辑保留（王强 = 当前 lark 用户）
+- cmd_find_name 的「排除自己」逻辑保留（按 config 的 my_name/aliases 排除当前 lark 用户）
 
 多实例支持（#24）：cmd_find_name / cmd_normalize /
 cmd_update_index / cmd_get_cursor 均接受可选 `--instance <name>` 参数：
@@ -86,7 +86,7 @@ def cmd_find_name():
     """从消息列表中找到对话对方的名字（排除自己）。
 
     [--instance <name>]：按该实例的 aliases + my_name 排除自己（#23/#24）。
-    无 --instance：兜底排除 {'王强'}（旧行为）。
+    无 --instance：取 config 首个 feishu 实例的 aliases（旧行为）。
     """
     instance, _ = _parse_instance_arg()
     exclude = _exclude_set(instance)
