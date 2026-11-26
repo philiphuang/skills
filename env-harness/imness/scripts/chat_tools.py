@@ -358,8 +358,12 @@ def cmd_update_index():
             new_chat['last_message'] = {'create_time': last_create_time}
         chats.append(new_chat)
     idx['chats'] = chats
-    with open(index_file, 'w') as f:
+    # 原子写：先写临时文件再 rename——open('w') 先截断原文件，
+    # dump 中途抛错（如 display_name 含坏字节触发 UnicodeEncodeError）会留半条记录
+    tmp = index_file + '.tmp'
+    with open(tmp, 'w') as f:
         json.dump(idx, f, ensure_ascii=False, indent=2)
+    os.replace(tmp, index_file)
 
 def cmd_merge():
     """合并两个 JSON 数组: stdin 每两行为一对 existing + new"""

@@ -1,7 +1,7 @@
 ---
 name: imness
 description: 飞书 IM 会话采集加工器。采集飞书群聊/单聊消息，打码脱敏后构建可自维护的 markdown 知识库；发现会议妙记链接并转交 docness 收逐字稿；提取候选任务供人工 triage。触发词：采集、拉取、会话、群聊、单聊、会议、妙记、纪要、待办、知识库、报告、巡检、整理。不负责：调度层(cron/编排)、非飞书源(微信/email)、跨项目分发、向他人自动派发任务、妙记取件落库(docness 职责)。
-version: 1.1.0
+version: 1.1.1
 metadata:
   mode: production
   platform: opencode

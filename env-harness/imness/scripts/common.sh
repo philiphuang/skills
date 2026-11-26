@@ -109,10 +109,13 @@ sys.exit(f'未在飞书找到标签: {tag}')
 # 文件名清洗：把不安全的字符替换/删除，使其可作文件名。
 # / 与空格 → _；< > : " | ? * 删除；默认截断到 40 字符（与 collect-meetings 一致）。
 # 所有 collect 脚本共用，避免文件名规则 drift。
+# 截断按字符不按字节：cut -c 按 UTF-8 序列中间下刀会产生非法文件名，
+# 下游写 index.json 即 UnicodeEncodeError 留半条记录（FR-15 G1 根因）。
 sanitize_filename() {
   local raw="$1"
   local max_len="${2:-40}"
-  echo "$raw" | sed 's/[/ ]/_/g; s/[<>:"|?*]//g' | cut -c1-"$max_len"
+  echo "$raw" | sed 's/[/ ]/_/g; s/[<>:"|?*]//g' | \
+    python3 -c 'import sys; print(sys.stdin.read().rstrip("\n")[:int(sys.argv[1])])' "$max_len"
 }
 
 # === profile 切换恢复（#24 决策：串行采集，采完恢复原 active profile）===
