@@ -1,0 +1,11 @@
+# docness Python 依赖（skills-factory #220）
+# 安装到用户级 venv（机器本地，不进 skill 目录与中央源副本）：
+#   python3 -m venv ~/.venvs/docness
+#   ~/.venvs/docness/bin/pip install -r requirements.txt
+pypdf
+python-docx
+python-pptx
+pandas
+openpyxl
+olefile
+PyYAML

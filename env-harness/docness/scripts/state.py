@@ -1,4 +1,4 @@
-"""Front matter read/write and index update for Docness state tracking."""
+"""Front matter read/write for Docness state tracking."""
 
 from __future__ import annotations
 
@@ -6,8 +6,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import yaml
-
-from .index import add_entry, load_index
 
 
 def _indent_yaml(text: str, spaces: int = 2) -> str:

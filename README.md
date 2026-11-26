@@ -51,7 +51,7 @@ skillshare install philiphuang/skills/env-harness/docness -p
 | `imness/` | 飞书 IM 会话与会议采集加工器——采集群聊/妙记，打码脱敏后建可维护知识库，提取候选任务 |
 | `md2feishu/` | 本地 markdown 增量同步到飞书 wiki，保留批注/白板/图片 |
 | `qianwen-minutes-sync/` | 千问录音逐字稿 getter——list-new 增量列新录音会话（Cookie 快照鉴权），fetch 浏览器通道导出官方原文 txt，游标失败自动回滚；附 gen-projects-map 项目映射生成 |
-| `transcribe/` | 音频转文字，可选说话人分离与已知说话人提示 |
+| `transcribe/` | 音视频转带时间戳逐字稿 Markdown——DashScope 长音频文件转写（实测 2h+），默认静音扫描＋分段裁剪＋时间戳映射回原片，`--diarize` 开启说话人分离（paraformer-v2） |
 | `project-daimon/` | 项目初始化脚手架——Git/gitignore/Agent 环境多选/AGENTS.md/MCP/skill 启用 |
 | `scene-switcher/` | 多角色 Skill 场景切换器——保存现场、切换预设、精确还原 |
 

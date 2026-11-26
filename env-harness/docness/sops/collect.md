@@ -30,9 +30,18 @@ WS=$(python3 -m scripts.init_workspace "<项目根目录>")
 
 ## 流程
 
+0. **自动模式前置（仅定时任务调用时）** — 先执行
+   `python3 -m scripts.autoscan pending --phase scan --state-dir {$知识库} --scope {$收件箱} --out /tmp/docness-pending.json`；
+   本轮只处理清单 `items[].path` 中的文件。手动给定 URL 或路径时跳过本步。
 1. **输入识别** — 运行 `python3 -m scripts.dispatch "<输入>"`（从 docness 目录执行；输出仅用于识别意图，不产生文件），解析返回 JSON 获得 intent/subtype/source_type
 2. **保存原始 URL** — URL 类型的输入先写入 `{$收件箱}/{timestamp}-url.txt`
-3. **本地文件** — 复制到 `{$收件箱}/`
+3. **本地文件** — 复制到 `{$收件箱}/`。复制完成后须刷新 mtime 为当前时间（`shutil.copy2()` 或 `cp -p` 会保留源文件旧时间戳，早于水位的文件将一直不被自动扫描发现）：
+
+   ```bash
+   python3 -c "import os,sys; os.utime(sys.argv[1], None)" "<收件箱目标路径>"
+   ```
+
+   飞书文档导出、腾讯文档下载、妙记逐字稿落盘后同样处理一次。
 4. **格式转换** —— 两阶段路由：
    - **4a 旧格式桥接** — .doc/.ppt/.xls/.wps 先经 LibreOffice headless 转为新格式（.docx/.pptx/.xlsx）再进入判定。LibreOffice 不可用时提示用户手动另存，或降级走 Anthropic Skill。桥接产物放系统临时目录。
    - **4b 复杂度判定路由** — 对新格式文件运行 `python3 -m scripts.complexity <文件路径> <文件类型>` 或调用 `decide_route()`：
@@ -64,7 +73,7 @@ WS=$(python3 -m scripts.init_workspace "<项目根目录>")
          - `--transcript` 产物落 `./minutes/{token}/transcript.txt`（`--output-dir` 可能不生效），移走后删除该临时目录（见「临时产物铁律」）
          - 主题取 `+detail` 基础信息 `title`；落点 `{$知识库}/会议纪要/{yymmdd}-{主题}-逐字稿.txt`，内联平铺（不建会议子目录）；`{yymmdd}` 为**会议开始日期**（逐字稿首行时间戳），非采集日期
          - 逐字稿**原样保存**：不截断、不打码、不重排——硬凭证打码属 ingest 阶段（imness `redact.py`，见其 SKILL.md）
-         - 入库三件套同「分类与入库」：category 固定 `会议纪要`（不跑 classify）、source=妙记 URL、source_type=`feishu-minutes`、original_filename=`transcript.txt`
+         - 入库记录同「分类与入库」：category 固定 `会议纪要`（不跑 classify）、source=妙记 URL、source_type=`feishu-minutes`、original_filename=`transcript.txt`
        - 腾讯会议（`meeting.tencent.com/`）→ `tencent-meeting-mcp`；飞书会议（`feishu.cn/vc/`）→ `lark-vc`
        - 千问录音（`qianwen.com/chat/`）→ `qianwen-minutes-sync`（本仓库 products/）的 `fetch`——浏览器通道导出官方原文 txt，agent 中立 getter：
          - 只收逐字稿 txt（`[mm:ss] 发言人N: 文本`，官方导出原样），不收 AI 纪要、不存音频——加工提炼属 ingest 阶段
@@ -74,12 +83,14 @@ WS=$(python3 -m scripts.init_workspace "<项目根目录>")
            用 projects-map（标题×关键词）逐条判定，**判定表交用户确认/改判后才拉取入库**；
            用户指令已明确项目则免确认。无人值守定时拉取：high 自动入库、其余落**待分类池**
            （`{$默认工作区}/收件箱/待分类/`，status: pending，见同文件；池按来源通用，
-           分拣维度始终是分类目录如 会议纪要/）。入库三件套落**确认项目的工作区**
+           分拣维度始终是分类目录如 会议纪要/）。入库记录落**确认项目的工作区**
            （其 `project_dir` 的 `init_workspace` 输出），不落 agent 当前项目。
            定时采集家族的调度细节属内部运维，不随本仓发布
-         - 入库三件套同上：category 固定 `会议纪要`（不跑 classify）、source=chat URL、source_type=`qianwen-audio`、original_filename=导出 txt 文件名；落点 `{$知识库}/会议纪要/{yymmdd}-{主题}-逐字稿.txt`，`{yymmdd}` 取会话创建日期（list-new 的 create_time）
+         - 入库记录同上：category 固定 `会议纪要`（不跑 classify）、source=chat URL、source_type=`qianwen-audio`、original_filename=导出 txt 文件名；落点 `{$知识库}/会议纪要/{yymmdd}-{主题}-逐字稿.txt`，`{yymmdd}` 取会话创建日期（list-new 的 create_time）
      - 网页 → `baoyu-url-to-markdown`
-     - 音视频 → `transcribe`
+     - **本地音视频**（.mp3/.mp4/.wav 等，含纯音频 mp4）→ `transcribe`（池内，或按仓库路径 `products/env-harness/transcribe/scripts/transcribe.py` 调用）——**唯一通道**（原 meeting-transcript 改名顶替，2026-11-26 起 OpenAI 版已移除）。DashScope 长音频文件转写（实测 2h+）；**默认含静音扫描＋分段裁剪＋时间戳自动映射回原片**（判据：静音占比 > 5% 或单段 > 60s 才裁；纯静音段如设备先行开启的死空气不付费不重传；产物 `*_原片时间.md` 自带原片时间戳，无需手工加偏移），`--no-trim` 可关；需要说话人标注加 `--diarize`（paraformer-v2 + diarization_enabled，>2h 自动分块，实测 6 说话人），默认模型输出「片段N」分段；需 `DASHSCOPE_API_KEY` + ffmpeg，Python 依赖（dashscope/requests）装独立 venv `~/.venvs/transcribe` 运行（每 skill 一份 venv，勿装入 docness venv；PEP 668 机器禁裸 pip）
+       - 转写脚本原生输出（`{stem}_字幕_{时间戳}.md` 等）属**中间产物**：入库前按本 SOP 命名规范改名搬移为 `{$知识库}/会议纪要/{yymmdd}-{主题}-逐字稿.md`，`{yymmdd}` 取录音日期（文件名内嵌日期或录音起始时间）
+       - 入库三件套同「分类与入库」：category 固定 `会议纪要`（不跑 classify）、source=本地文件路径、source_type=按 dispatch 输出（`video`/`audio`）、original_filename=原始文件名；逐字稿原样保存，不截断、不打码
    - **4d 附件与在线文档提取** — 正文转换（4a/4b）之外并行的第二条产出线，详见下文「附件与在线文档」：
      检测嵌入附件/外部链接 → 存 `{$工作台}/{正文名去后缀}/` → 逐一按本 SOP 递归处理入库。附件提取不影响正文路由。
 
@@ -96,8 +107,8 @@ WS=$(python3 -m scripts.init_workspace "<项目根目录>")
    `xl/sharedStrings.xml` 读共享字符串、`xl/worksheets/sheetN.xml` 按 `<c>` 单元格的
    `t="s"`（共享字符串索引）/`t="inlineStr"`（内联文本）/其余（原值）取值拼表。
    经验细节见 `references/xlsx-to-csv.md`。
-4. **入库**：每个 csv 走 collect 三件套（front matter + index + log），索引 path 指向 csv 文件；
-   主文档附件清单链接同步改 csv。**不产出 md，索引中也不留 md 条目。**
+4. **入库**：每个 csv 走 collect 入库记录（front matter + log）；
+   主文档附件清单链接同步改 csv。**不产出 md。**
 
 ## 附件与在线文档
 
@@ -126,8 +137,8 @@ WS=$(python3 -m scripts.init_workspace "<项目根目录>")
      - **可识别命名落位**：从 `docProps/core.xml` 标题、或从文档内容首行/标题提炼真实文件名
        （如 `外呼样本导入文件格式说明.docx`），**禁止「附件N」/「嵌入附件N」占位交付**。
        脚本以标题优先命名（`extract_attachments.py`），无标题退回 `附件N` 占位时，
-       须在入库前提炼补名（可用 `rename_attachment()`），并同步 5 处：
-       收件箱文件名 / 知识库 md / media 目录 / md 内引用 / 索引 source / 主文档附件清单。
+       须在入库前提炼补名（可用 `rename_attachment()`），并同步 4 处：
+       收件箱文件名 / 知识库 md / media 目录 / md 内引用 / 主文档附件清单。
        原因：docx `word/embeddings/` 的 OLE Package 元数据不保留源文件名（只有
        `Microsoft_Word_Document1.docx` 之类 Word 占位名），**标题提炼是唯一途径**。
      - **md5 落盘去重**：命名附件与 OLE 嵌入同文件时（md5 一致，**与文件名无关**）
@@ -137,7 +148,7 @@ WS=$(python3 -m scripts.init_workspace "<项目根目录>")
    需要登录/无法下载的链接记录到 `.logs/` 并在最终汇报中列出，不静默跳过
 4. **递归处理** — 对附件目录里的每个文件**复用本 SOP 主流程**（步骤 4 起）：
    复杂度判定 → simple/complex 路由 → md/csv → 分类 → 入 `{$知识库}/{category}/` →
-   记录 front matter + index + log（与正文同规；`source` 注明来源正文文件名）
+   记录 front matter + log（与正文同规；`source` 注明来源正文文件名）
 5. **递归控制** — 附件里再嵌附件时同上递归，但最多 2 层；全程按 md5 去重，
    已处理过的附件不重复入库，避免死循环
 
@@ -152,9 +163,9 @@ WS=$(python3 -m scripts.init_workspace "<项目根目录>")
 - **附件 md 进同名子目录**：附件 md 与源附件落在 `<主文档名>/` 同名子目录里——
   `{$知识库}/{category}/工单助理V0.9.0/附件A.md`，与 `{$收件箱}/<源文件去后缀>/` 子目录一一对应。
 - **media 按「每个 md 同名目录」分层**：`{md 名}.md` + `{md 名}/image1.png`（见下「media 规则」）。
-- **附件移动后同步改 3 处**（附件 md 从平铺改为同名子目录等结构调整时）：
+- **附件移动后同步改 2 处**（附件 md 从平铺改为同名子目录等结构调整时）：
   ① md 内 media 引用（`media/附件名/` → `../media/子目录/附件名/`，按新相对位置重算）；
-  ② 主文档附件清单**相对链接**（加子目录前缀）；③ 索引 `path` 字段。
+  ② 主文档附件清单**相对链接**（加子目录前缀）。
   改完逐项核对，保证全链路零断裂。
 
 ### media 规则
@@ -190,15 +201,13 @@ WS=$(python3 -m scripts.init_workspace "<项目根目录>")
    - 失败链接同时记录到 `.logs/` 并在最终汇报中列出，不静默跳过。
 6. 附件提取阶段的 `外部URL.md` 是原始线索；`原文.URL.md` 是最终交付清单，两者不互相替代。
 
-## 主文档闭环核对清单（5 项）
+## 主文档闭环核对清单（3 项）
 
 主文档 collect 完成后，**逐项核对**（主文档 md 存在 ≠ 闭环完成，工单助理场景实测踩坑）：
 
 - [ ] ① **front matter source 为当前实际路径**（源文件可能被移动，source 会过期失效）
 - [ ] ② **末尾有附件清单章节**（嵌入附件/URL 清单的入库位置与引用点，见 `references/attachment-handling.md`）
-- [ ] ③ **索引有主文档条目**（collect 时可能漏登主文档，只登了附件）
-- [ ] ④ **附件 md 与索引 source 指向权威附件目录**（同名子目录，而非旧临时目录/平铺路径）
-- [ ] ⑤ **临时产物已清理**（`_提取输出/`、LibreOffice 桥接 docx、解包目录等，见「临时产物铁律」）
+- [ ] ③ **临时产物已清理**（`_提取输出/`、LibreOffice 桥接 docx、解包目录等，见「临时产物铁律」）
 
 任一核对不过 → 修正后再算闭环完成。
 
@@ -207,10 +216,16 @@ WS=$(python3 -m scripts.init_workspace "<项目根目录>")
 1. **分类** — 运行 `python3 -m scripts.classify <Markdown文件路径>`，拿到分类 prompt 后自行调用 LLM，再用 `parse_classify_response()` 解析返回 JSON 获得 category（见 `references/categories.md` 的分类规则）。飞书妙记/千问录音逐字稿**不走 classify**，category 固定 `会议纪要`（见 4c）。
 2. **入库** — 移动到 `{$知识库}/{category}/`，生成规范文件名（这是必须完成的一步，不省略）；
    media 图片随 md 进入同名子目录。
-3. **记录** — 三项缺一不可，全部完成才算 collect 结束：
+3. **记录** — 两项缺一不可，全部完成才算 collect 结束：
    - 调用 `record_collect(filepath, source, source_type, category, original_filename)` 写入 front matter（schema 见 `references/front-matter-schema.md`）
-   - 调用 `index.add_entry(...)` 登记 `{$知识库}/docness-index.yml`（`index_path` 传该绝对路径）
    - 调用 `record_log(log_dir, action, detail)` 追加 `.logs/YYYY-MM-DD-docness.md` 条目（`log_dir` 取 WS 输出的 `logs`）
+
+3b. **提交扫描水位（仅自动模式）** — 把本轮完成入库记录（front matter + log）的源文件路径逐行写入
+   `/tmp/docness-ok.txt`，再执行
+   `python3 -m scripts.autoscan commit --pending /tmp/docness-pending.json --ok /tmp/docness-ok.txt`。
+   失败项不写入成功清单，水位会停在连续成功段末尾，失败项下一轮自动重入。
+   存在失败项时不得使用 `--all-ok`。
+
 4. **URL 提炼 + 闭环核对** — 全部入库后执行「URL 提炼」与「主文档闭环核对清单」。
 
 ## 转换失败降级

@@ -8,8 +8,8 @@
 - xlsx 是**多 sheet 表格**，md 表格无法保留 sheet 结构；拍平后数据不可读（8 sheet 混在一个 md 里）。
 - **改为转 csv**：构建与 excel 同名的子目录，**一 sheet 一 csv**，csv 以 sheet 名为文件名。
   数据可读性最好，Excel/WPS 可直接打开。
-- 入库：每个 csv 走 collect 三件套（front matter + index + log），索引 path 指向 csv 文件；
-  主文档附件清单链接同步改 csv。不产出 md，索引中不留 md 条目。
+- 入库：每个 csv 走 collect 入库记录（front matter + log）；
+  主文档附件清单链接同步改 csv。不产出 md。
 
 ## 编码：utf-8-sig
 

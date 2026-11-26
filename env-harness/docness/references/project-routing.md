@@ -48,7 +48,7 @@
 
 - **池位置**：`{$默认工作区}/收件箱/待分类/`（= projects-map `defaults.inbox_dir`）——**跨项目、跨来源共用一个池**
   （千问/腾讯会议/妙记等来源共用；来源差异只体现在 front matter 的 `source_type`，不体现为目录）
-- **落池形态**：规范名按来源产物（千问 `{yymmdd}-{主题}-逐字稿.txt`、腾讯会议
+- **落池形态**：规范名按来源产物（千问 `{yymmdd}-{主题}-逐字稿.md`、腾讯会议
   `{yymmdd}-{主题}-纪要.md`；拉取时即按会议日期+标题定名，归位时零重命名），
   front matter 记 source / `source_type`（qianwen-audio /
   tencent-meeting / feishu-minutes）/ category=`会议纪要` / **`status: pending`**
@@ -62,14 +62,14 @@
     解析时只认用户本人消息（调度注册细节属内部运维，不随本仓发布）
   - **交互会话**：用户在场时也可现场认领，直接走下方步骤
   - 步骤：确认项目 → 该项目 `init_workspace` → 移入其
-    `收件箱/` + `知识库/会议纪要/` → 三件套（`status: collected`）→ 两侧 `.logs` 记迁移 →
+    `收件箱/` + `知识库/会议纪要/` → 入库记录（`status: collected`）→ 两侧 `.logs` 记迁移 →
     可建议回写 keywords
 - 池内积压 > 5 → 报告加显式警告行（抄 v1 classification-spec 提醒语义）
 
 ## 入库落点
 
 确认的项目以其 `project_dir` 跑 `init_workspace` 解析该项目工作区
-（收件箱 / 知识库 / logs），三件套（front matter / 索引 / 日志）全部落**该项目**，
+（收件箱 / 知识库 / logs），入库记录（front matter / 日志）全部落**该项目**，
 不得落 agent 当前所在项目。
 
 ## 适用范围

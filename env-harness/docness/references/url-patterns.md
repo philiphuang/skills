@@ -24,7 +24,7 @@
 | Local `.pdf` | PDF 文件 | pandoc/pypdf（优先）→ MinerU（复杂）→ Anthropic `pdf`（兜底） |
 | Local `.md` | Markdown | send intent |
 | Local `.csv`/`.txt` | 纯文本 | pandas（CSV）/ 直接分类 |
-| Local `.mp3`/`.mp4`/`.wav` | 音视频 | `transcribe` |
+| Local `.mp3`/`.mp4`/`.wav` | 音视频 | `transcribe`（唯一通道；`--diarize` 开启说话人分离） |
 
 ## 复杂度路由
 

@@ -254,8 +254,8 @@ def rename_attachment(attachments_dir: str | Path, old_name: str, new_name: str)
     原文件可能是 "附件N" 占位（无标题）或 "附件N_标题" 形式；落位同目录，
     文件名安全化（非法字符 → _）。返回新文件路径；旧文件不存在或已同名返回 None。
 
-    注意：重命名后需同步更新 知识库 md / media 目录 / md 内引用 / 索引 source /
-    主文档附件清单（5 处），见 sops/collect.md「附件与在线文档」。
+    注意：重命名后需同步更新 知识库 md / media 目录 / md 内引用 /
+    主文档附件清单（4 处），见 sops/collect.md「附件与在线文档」。
     """
     out = Path(attachments_dir)
     old = out / old_name
