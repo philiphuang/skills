@@ -54,5 +54,6 @@ skillshare install philiphuang/skills/env-harness/docness -p
 | `transcribe/` | 音视频转带时间戳逐字稿 Markdown——DashScope 长音频文件转写（实测 2h+），默认静音扫描＋分段裁剪＋时间戳映射回原片，`--diarize` 开启说话人分离（paraformer-v2） |
 | `project-daimon/` | 项目初始化脚手架——Git/gitignore/Agent 环境多选/AGENTS.md/MCP/skill 启用 |
 | `scene-switcher/` | 多角色 Skill 场景切换器——保存现场、切换预设、精确还原 |
+| `neiping-check/` | FDE 需求件内评机械核对——按七项检查单（AC 可测性/状态机引用/权限矩阵/数据字典/上游追溯/AC 映射/场景覆盖）逐项核对需求件全套，产核对表；不产出通过/不通过结论 |
 
 安装地址：`https://github.com/philiphuang/skills/tree/main/env-harness/<skill>`
