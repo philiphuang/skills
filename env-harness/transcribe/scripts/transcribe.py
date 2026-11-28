@@ -21,7 +21,7 @@ _SCRIPT_DIR = _Path(__file__).resolve().parent
 if str(_SCRIPT_DIR) not in _sys.path:
     _sys.path.insert(0, str(_SCRIPT_DIR))
 import silence_map  # noqa: E402  (sibling module; needs script dir on path)
-import env_loader  # noqa: E402  (sibling module; env > skills.env fallback)
+import config_loader  # noqa: E402  (sibling module; env > env-harness-config.yaml fallback, #241)
 del _sys, _Path
 
 SUPPORTED_FORMATS = {".mp4", ".mp3", ".wav", ".m4a", ".flac", ".avi", ".mkv", ".mov"}
@@ -325,8 +325,8 @@ class MeetingTranscriber:
         if not shutil.which("ffmpeg"):
             raise EnvironmentError("ffmpeg not found in PATH. Please install ffmpeg.")
         try:
-            api_key = env_loader.get_required("DASHSCOPE_API_KEY")
-        except env_loader.MissingEnvError as exc:
+            api_key = config_loader.get_required("DASHSCOPE_API_KEY")
+        except config_loader.MissingEnvError as exc:
             raise EnvironmentError(str(exc)) from exc
         # dashscope SDK 只认 os.environ；回退链取到值后注入本进程，供 SDK 使用
         if not os.environ.get("DASHSCOPE_API_KEY"):
@@ -379,7 +379,7 @@ class MeetingTranscriber:
 
     def _submit_asr_task(self, oss_url: str) -> str:
         def _do_call():
-            api_key = env_loader.get_required("DASHSCOPE_API_KEY")
+            api_key = config_loader.get_required("DASHSCOPE_API_KEY")
             headers = {
                 "Authorization": f"Bearer {api_key}",
                 "Content-Type": "application/json",
@@ -425,7 +425,7 @@ class MeetingTranscriber:
         return task_id
 
     def _poll_result(self, task_id: str) -> dict:
-        api_key = env_loader.get_required("DASHSCOPE_API_KEY")
+        api_key = config_loader.get_required("DASHSCOPE_API_KEY")
         headers = {"Authorization": f"Bearer {api_key}"}
         url = f"https://dashscope.aliyuncs.com/api/v1/tasks/{task_id}"
         start_time = time.time()

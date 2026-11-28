@@ -3,7 +3,7 @@ name: transcribe
 description: 将视频/音频文件自动转写为带时间戳分段的会议纪要 Markdown 逐字稿。支持 mp4/mp3/wav/m4a/flac 等格式，自动调用 ffmpeg 提取音轨，默认先做静音扫描与分段裁剪（长静音不付费不重传）再上传 DashScope，逐字稿时间戳自动映射回原片时间，适合长录音乃至全天录音（实测 2h+）。--diarize 开启说话人分离（paraformer-v2，实测 6 人），默认模型输出「片段N」分段。
 license: MIT
 metadata:
-  version: "1.2.1"
+  version: "1.3.0"
   mode: production
   platform: opencode
 ---
@@ -69,7 +69,7 @@ DashScope 返回的转写结果 URL 为临时签名链接，有效期较短。�
 
 - `ffmpeg`（系统包）
 - Python 依赖见 `requirements.txt`（dashscope、requests）。系统 Python 多为 externally managed（PEP 668），裸 `pip install` 会被拒——用 venv：`python3 -m venv <venv路径> && <venv路径>/bin/pip install -r requirements.txt`
-- `DASHSCOPE_API_KEY`：先读环境变量，读不到再回退项目根目录 `skills.env`（KEY=VALUE，如 `DASHSCOPE_API_KEY=sk-...`，加入 .gitignore 勿提交；路径可用 `SKILLS_ENV_FILE` 覆盖）
+- `DASHSCOPE_API_KEY`：先读环境变量，读不到再回退项目根 `env-harness-config.yaml`（YAML 平铺键，如 `DASHSCOPE_API_KEY: sk-...`，不进 git 仓；路径可用 `ENV_HARNESS_CONFIG_FILE` 覆盖）
 
 ## 示例
 

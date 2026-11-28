@@ -3,7 +3,7 @@ name: docness
 description: 文档收发编排器。把各来源文档（URL/本地/腾讯文档/飞书/会议录音）收进来转为 Markdown 入知识库，或从 Markdown 生成配图/PPT/Word/PDF 并推送到飞书/腾讯文档。用户要收集/归档文档、配图/转格式、或推送/上传文档时使用。
 license: MIT
 metadata:
-  version: "1.6.5"
+  version: "1.7.0"
   mode: production
   platform: opencode
 ---
@@ -151,7 +151,7 @@ python3 -m venv ~/.venvs/docness
 
 ### 密钥落点
 
-外部密钥按 agent 中立规则配置（环境变量优先，读不到回退项目根目录 `skills.env`，KEY=VALUE 格式、不进 git 仓；路径可用 `SKILLS_ENV_FILE` 覆盖）：
+外部密钥按 agent 中立规则配置（环境变量优先，读不到回退项目根 `env-harness-config.yaml`，YAML 平铺键、键名即环境变量名、不进 git 仓；路径可用 `ENV_HARNESS_CONFIG_FILE` 覆盖）：
 
 - `MINERU_API_KEY`（MinerU 复杂文档转换；旧名 `MINERU_TOKEN` 保留兼容）
 - `TENCENT_DOCS_TOKEN`（腾讯文档导出）

@@ -29,17 +29,63 @@ try:
 except ImportError:
     sys.exit('config.py 需要 pyyaml: pip install pyyaml')
 
+# config_loader 是工厂跨 skill 共享模块（transcribe/scripts/，#241 统一配置层）。
+# 两种布局：工厂 products/env-harness/transcribe/；中央池 skills-src/transcribe/（平铺）。
+# 探测到才挂 sys.path；独立安装（无兄弟 skill）时静默降级为直接读 YAML 文件。
+_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+# 兄弟层探测（跨 skill 共享 config_loader）：
+# - 工厂布局 products/env-harness/imness/scripts → 兄弟层 = products/env-harness
+# - 中央池平铺布局 skills-src/imness/scripts → 兄弟层 = skills-src
+# 同为 scripts/ 上溯两层，两种布局一条链；候选内含 config_loader.py 才挂 sys.path
+_SIBLING = os.path.dirname(os.path.dirname(_SCRIPT_DIR))
+for _cand in (os.path.join(_SIBLING, 'transcribe', 'scripts'),
+              os.path.join(_SIBLING, 'env-harness', 'transcribe', 'scripts')):
+    if os.path.isfile(os.path.join(_cand, 'config_loader.py')):
+        if _cand not in sys.path:
+            sys.path.insert(0, _cand)
+        break
+del _cand, _SIBLING
 
-def _config_path():
-    """config.yaml 位置 = 本脚本上级目录（imness/config.yaml）。
+CONFIG_FILENAME = 'env-harness-config.yaml'
+CONFIG_PATH_VAR = 'ENV_HARNESS_CONFIG_FILE'
 
-    可被环境变量 IMNESS_CONFIG 覆盖（prototype 用 config.prototype.yaml 验证）。
+
+def _harness_config_path():
+    """统一配置文件路径：ENV_HARNESS_CONFIG_FILE > 项目根/env-harness-config.yaml。
+
+    项目根解析与 project_root() 同源（IMNESS_PROJECT_ROOT > 脚本物理位置上溯）。
     """
-    env = os.environ.get('IMNESS_CONFIG')
-    if env:
-        return env
-    return os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                        'config.yaml')
+    override = os.environ.get(CONFIG_PATH_VAR, '').strip()
+    if override:
+        return override
+    return os.path.join(project_root(), CONFIG_FILENAME)
+
+
+def _imness_section():
+    """读 IMNESS_CHANNELS 平铺键（结构化键，只走 config 文件，不查环境变量）。
+
+    IMNESS_CONFIG 桥：测试/特殊部署用旧式整文件（含 channels: 顶层结构）时，
+    经该 env 指定文件并取其 channels 段——正式途径是统一 config 的平铺键。
+    """
+    bridge = os.environ.get('IMNESS_CONFIG')
+    if bridge:
+        try:
+            with open(bridge) as f:
+                return (yaml.safe_load(f) or {}).get('channels', {}) or {}
+        except Exception:
+            return {}
+    try:
+        import config_loader
+        value = config_loader.get_raw('IMNESS_CHANNELS')
+        return value if isinstance(value, dict) else {}
+    except ImportError:
+        # 独立安装：直接读 YAML 文件顶层键
+        try:
+            with open(_harness_config_path()) as f:
+                value = (yaml.safe_load(f) or {}).get('IMNESS_CHANNELS')
+            return value if isinstance(value, dict) else {}
+        except Exception:
+            return {}
 
 
 def project_root():
@@ -57,33 +103,51 @@ def project_root():
 def kb_root():
     """库根（其下挂 raw/ + wiki/）的唯一裁决处。
 
-    优先级：IMNESS_KB_ROOT env > config.yaml kb_root > 自动探测 > 项目根/knowledge（旧默认）。
-    kb_root 声明为相对路径时以项目根为基准。除末尾旧默认外，代码任何地方
-    不得再出现 knowledge 路径字面量。与 common.sh resolve_kb_root() 同构。
+    优先级：IMNESS_KB_ROOT env > config 的 IMNESS_KB_ROOT 平铺键 > 自动探测
+    > 项目根/knowledge（旧默认）。声明为相对路径时以项目根为基准。除末尾
+    旧默认外，代码任何地方不得再出现 knowledge 路径字面量。
+    与 common.sh resolve_kb_root() 同构。
     """
     env = os.environ.get('IMNESS_KB_ROOT')
     if env:
         return os.path.abspath(env)
-    root = project_root()
+    declared = ''
     try:
-        with open(_config_path()) as f:
-            declared = (yaml.safe_load(f) or {}).get('kb_root') or ''
-    except Exception:
-        declared = ''
+        import config_loader
+        declared = str(config_loader.get('IMNESS_KB_ROOT') or '')
+    except ImportError:
+        try:
+            with open(_harness_config_path()) as f:
+                declared = str((yaml.safe_load(f) or {}).get('IMNESS_KB_ROOT') or '')
+        except Exception:
+            declared = ''
     if declared:
+        root = project_root()
         return os.path.normpath(declared if os.path.isabs(declared)
                                 else os.path.join(root, declared))
+    root = project_root()
     if os.path.isfile(os.path.join(root, '.wiki-schema.md')) and os.path.isdir(os.path.join(root, 'raw')):
         return root
     return os.path.join(root, 'knowledge')
 
 
 def _load(path=None):
-    path = path or _config_path()
-    if not os.path.exists(path):
-        sys.exit(f'config 不存在: {path}')
-    with open(path) as f:
-        return yaml.safe_load(f)
+    """载 imness 配置体。
+
+    正式形态：统一 config 的 IMNESS_CHANNELS 平铺键 → 包装回 {channels: ...}
+    结构（子命令/消费函数沿用旧 shape，零改动）。
+    桥形态：IMNESS_CONFIG 指定的整文件（含 channels: 顶层结构）。
+    """
+    if path is not None:
+        if not os.path.exists(path):
+            sys.exit(f'config 不存在: {path}')
+        with open(path) as f:
+            return yaml.safe_load(f)
+    channels = _imness_section()
+    if not channels:
+        sys.exit(f'IMNESS_CHANNELS 未配置。落点: 项目根 {CONFIG_FILENAME} 的平铺键 '
+                 f'IMNESS_CHANNELS（路径可用 {CONFIG_PATH_VAR} 覆盖；测试可用 IMNESS_CONFIG 指整文件）。')
+    return {'channels': channels}
 
 
 def _instances(cfg, channel='feishu'):

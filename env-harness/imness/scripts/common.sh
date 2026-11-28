@@ -20,11 +20,13 @@ IMNESS_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"          # imness/
 # 项目根：默认 = imness/ 上级；跨项目部署（代码在中央库、数据在项目根）时
 # 用 IMNESS_PROJECT_ROOT 指向真实项目根（与 config.py project_root() 对齐）
 PROJECT_ROOT="${IMNESS_PROJECT_ROOT:-$(cd "$IMNESS_DIR/.." && pwd)}"
-# config 位置：默认 = imness/config.yaml；IMNESS_CONFIG 可覆盖（与 config.py 对齐）
-CONFIG_FILE="${IMNESS_CONFIG:-$IMNESS_DIR/config.yaml}"
+# config 位置：默认 = 项目根 env-harness-config.yaml（#241 统一配置层）；
+# IMNESS_CONFIG 桥指旧式整文件（测试用）；ENV_HARNESS_CONFIG_FILE 与全家族同覆盖
+HARNESS_CONFIG="${ENV_HARNESS_CONFIG_FILE:-$PROJECT_ROOT/env-harness-config.yaml}"
+CONFIG_FILE="${IMNESS_CONFIG:-$HARNESS_CONFIG}"
 
 # 库根解析（其下挂 raw/ + wiki/），与 config.py kb_root() 同构：
-#   IMNESS_KB_ROOT env > config.yaml kb_root > 自动探测(.wiki-schema.md + raw/) > 项目根/knowledge（旧默认）
+#   IMNESS_KB_ROOT env > config 的 IMNESS_KB_ROOT 平铺键 > 自动探测(.wiki-schema.md + raw/) > 项目根/knowledge（旧默认）
 # 除末尾旧默认外，代码任何地方不得再出现 knowledge 路径字面量。
 resolve_kb_root() {
   if [[ -n "${IMNESS_KB_ROOT:-}" ]]; then echo "$IMNESS_KB_ROOT"; return; fi
@@ -33,7 +35,8 @@ resolve_kb_root() {
 import os, yaml
 try:
     with open(os.environ['IMNESS_CFG']) as f: cfg = yaml.safe_load(f) or {}
-    d = cfg.get('kb_root') or ''
+    # 桥（IMNESS_CONFIG 整文件）读顶层 kb_root；统一 config 读平铺键 IMNESS_KB_ROOT
+    d = cfg.get('IMNESS_KB_ROOT') or cfg.get('kb_root') or ''
     print(os.path.normpath(d if os.path.isabs(d) else os.path.join(os.environ['PR'], d)) if d else '')
 except Exception: print('')
 " 2>/dev/null) || declared=''
@@ -69,7 +72,7 @@ with open('$CONFIG_FILE') as f:
     cfg = yaml.safe_load(f)
 groups = cfg.get('feed_groups', [])
 if not groups:
-    sys.exit('config.yaml 无 feed_groups 配置')
+    sys.exit('config 无 feed_groups/IMNESS_CHANNELS 配置')
 tag = groups[0]
 import subprocess
 out = subprocess.run(['lark-cli','im','+feed-group-list','--format','json'],

@@ -1,7 +1,7 @@
 ---
 name: imness
 description: 飞书 IM 会话采集加工器。采集飞书群聊/单聊消息，打码脱敏后构建可自维护的 markdown 知识库；发现会议妙记链接并转交 docness 收逐字稿；提取候选任务供人工 triage。触发词：采集、拉取、会话、群聊、单聊、会议、妙记、纪要、待办、知识库、报告、巡检、整理。不负责：调度层(cron/编排)、非飞书源(微信/email)、跨项目分发、向他人自动派发任务、妙记取件落库(docness 职责)。
-version: 1.1.1
+version: 1.2.0
 metadata:
   mode: production
   platform: opencode
@@ -35,7 +35,7 @@ metadata:
       - name: "lark-task"
         role: "候选任务确认后手动新建/关闭飞书任务"
         required: false
-  config: "config.yaml"
+  config: "env-harness-config.yaml"
 ---
 
 # imness — 飞书 IM harness
@@ -47,7 +47,7 @@ imness 是面向 IM 的 **harness** 手段（与面向 docs 的 docness 对齐�
 所有脚本/代码中的知识库路径 = **库根（kb_root，其下挂 `raw/` + `wiki/`）** 派生，不再散落 `knowledge/` 字面量。解析层级（`common.sh resolve_kb_root()` 与 `config.py kb_root()` 同构）：
 
 1. `IMNESS_KB_ROOT` env 显式指定（最高优先，测试/临时用）
-2. `config.yaml` 顶层 `kb_root:` 声明（正式途径；相对路径以项目根为基准，如 `kb_root: .` = 库根即项目根）
+2. 统一 config 的 `IMNESS_KB_ROOT` 平铺键声明（正式途径；相对路径以项目根为基准，如 `IMNESS_KB_ROOT: .` = 库根即项目根）
 3. 自动探测：项目根存在 `.wiki-schema.md` + `raw/` → 库根 = 项目根（库根=项目根结构）
 4. 旧默认：`$PROJECT_ROOT/knowledge`（唯一保留 `knowledge` 字面量处，向后兼容）
 
@@ -57,7 +57,7 @@ imness 是面向 IM 的 **harness** 手段（与面向 docs 的 docness 对齐�
 
 ```bash
 export IMNESS_PROJECT_ROOT=/path/to/real/project   # 项目根
-export IMNESS_CONFIG=$IMNESS_PROJECT_ROOT/imness/config.yaml  # 实例 config（默认=中央库 imness/config.yaml，通常不存在）
+export ENV_HARNESS_CONFIG_FILE=$IMNESS_PROJECT_ROOT/env-harness-config.yaml  # 统一 config（#241；实例配置在其 IMNESS_CHANNELS 平铺键下）
 bash ~/.local/share/skills-src/imness/scripts/collect-chats.sh --all
 ```
 
@@ -138,7 +138,7 @@ sdyckjq 的 cache.sh 按 raw 文件整体 SHA256 判断是否变化——增量�
 
 ## config（多渠道多实例）
 
-`config.yaml` 用 `channels.<渠道>[]` 结构组织（见 `config.example.yaml`）。飞书渠道下可配多个实例（同人多账号 / 不同人），每个实例 = 1 个 lark-cli profile，字段：`name` / `lark_profile` / `my_name` / `my_id` / `my_aliases[]` / `project_tags[]`（全必填）。微信渠道占位（采集未实现）。
+统一 config 的 `IMNESS_CHANNELS` 平铺键下用 `<渠道>[]` 结构组织（见家族统一示例 `../env-harness-config.example.yaml`；结构化键只走 config 文件，不查环境变量）。飞书渠道下可配多个实例（同人多账号 / 不同人），每个实例 = 1 个 lark-cli profile，字段：`name` / `lark_profile` / `my_name` / `my_id` / `my_aliases[]` / `project_tags[]`（全必填）。微信渠道占位（采集未实现）。
 
 **config.py 是 config 的唯一读取入口**（纯数据读取，不含 lark-cli 调用），common.sh / chat_tools.py / report.py 都调它，不内联 pyyaml。子命令：
 
